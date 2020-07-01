@@ -1,0 +1,18 @@
+# Python Cache
+__pycache__/
+
+# Saved Models
+*.tar
+*.pth
+*.pwf
+
+# Training logs
+lightning_logs/
+
+# Saved Models
+saved_models/
+
+# Saved Visuals
+visuals/
+
+.DS_Store
