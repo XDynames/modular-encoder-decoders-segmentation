@@ -33,6 +33,7 @@ import torch.nn as nn
 
 import numpy as np
 
+from encoder_decoder import EncoderDecoder
 from . import refinedResNet, refinedMobilenet
 from .utils.helpers import maybe_download
 from .utils.layer_factory import conv1x1, conv3x3
@@ -63,6 +64,133 @@ models_urls = {
     '152_context': 'https://cloudstor.aarnet.edu.au/plus/s/KOVS1HaEuuTIuI3/download',
     'v2_voc': 'https://cloudstor.aarnet.edu.au/plus/s/PsEL9uEuxOtIxJV/download', # Not Working
     }
+
+# Light Weight RefineNet
+class RefineNetLW(EncoderDecoder):
+
+    def __init__(self, feature_extractor, num_classes):
+        super(RefineNetLW, self).__init__()
+        # Back bone feature extractor from model collection
+        self.encoder = feature_extractor
+
+        # Light Weight RefineNet Decoder layers
+        # 1x1 Dimensionality matching layers
+        self.create_dimMatchers()
+        # CRP Units
+        self.CRP_level1 = self._make_crp(256, 256, 4)
+        self.CRP_level2 = self._make_crp(256, 256, 4)
+        self.CRP_level3 = self._make_crp(256, 256, 4)
+
+        # Inter-Depth Fusion Modules   
+        self.fusion_level3_2 = Fusion(256, 256)      
+        self.fusion_level2_1 = Fusion(256, 256)
+
+        # Deep blocks specific to ResNet implementation
+        if self.encoder.__class__.__name__ == 'RefinedResNet':
+            self.CRP_level4 = self._make_crp(512, 512, 4)
+            self.fusion_level4_3 = Fusion(512, 256)
+        else:
+            self.CRP_level4 = self._make_crp(256, 256, 4)
+            self.fusion_level4_3 = Fusion(256, 256)
+
+        # Classification Layer
+        self.classification = conv3x3(256, num_classes, bias=True)
+
+    # Wrapper to construct Chained Residual Pooling units
+    def _make_crp(self, in_planes, out_planes, stages):
+        layers = [ CRPBlock(in_planes, out_planes,stages) ]
+        return nn.Sequential(*layers)
+
+    # Creates incoming representation dimensionality matching convolutions
+    def build_dim_reducers(self):
+        chnl_sizes = self.encoder_channels()
+        for i in range(len(chnl_sizes)):
+            # ResNet has a larger terminal CRP of 512 channels
+            if  (self.encoder.__class__.__name__ == 'RefinedResNet' and
+                                chnl_sizes[i][1].split('_')[0] == 'level4'):
+                setattr(self, 'dimRed_' + chnl_sizes[i][1], 
+                conv1x1(chnl_sizes[i][0], 512, bias=False) )
+            else:
+                setattr(self, 'dimRed_' + chnl_sizes[i][1], 
+                conv1x1(chnl_sizes[i][0], 256, bias=False) )
+    
+    def forward(self, x, gradient_chk=False, upsample=True, decoder=True):
+        # Hacky - gradient checkpoint breaks without this... Seems to add memory
+        x.requires_grad = True
+    	# Encoder representations
+        intermediates = self.encoder(x, gradient_chk)
+        l1, l2, l3, l4 = self.dimensionalityMatch(intermediates)
+        if not decoder: return [l1, l2, l3, l4]
+        # Decoder
+        # Level 4: Deepest representation - 1/32
+        l4 = nn.ReLU()(l4)
+        l4 = self.CRP_level4(l4)
+        # Level 3: Intermediate representaton - 1/16 
+        # Fusion Level 4 and 3
+        l3 = self.fusion_level4_3(l4, l3, l3.size()[2:])
+        l3 = self.CRP_level3(l3)
+        # Level 2: Intermediate representation - 1/8
+        # Fusion Level 3 and 2
+        l2 = self.fusion_level3_2(l3, l2, l2.size()[2:])
+        l2 = self.CRP_level2(l2)
+        # Level 1: Shallowest representation - 1/4
+        # Fusion Level 2 and 1
+        l1 = self.fusion_level2_1(l2, l1, l1.size()[2:])
+        l1 = self.CRP_level1(l1)
+        # Match output channels to number of classes
+        l1 = self.classification(l1)
+        
+        # Upsample the prediction to be the same size as the original image
+        if upsample:
+            return nn.Upsample(size = x.size()[2:], mode = 'bicubic',
+                                                align_corners = False)(l1)
+        else: return l1
+
+# Builds the specified version of RefineNet
+# num_classes - Number of predictable classes in dataset used
+# model_variant - Type of Encoder to use
+# pretrained - Initialise to a pretrained version of RefineNet 
+def build(num_classes, encoder_variant, pretrained=False, group_norm=False):
+    # Extract architecture and type of encoder
+    architecture = encoder_variant.split('_')[0]
+    version = encoder_variant.split('_')[1]
+    encoder = None
+    
+    if not pretrained: print("Loading ImageNet")
+    else: print("Initialised Randomly")
+
+    # Check if model is implemented
+    if architecture == 'resnet':
+        encoder = refinedResNet.build_ResNet(version, not pretrained, group_norm)
+
+    if architecture == 'mobilenet':
+        encoder = refinedMobilenet.build_MobilenetV2(not pretrained)
+
+    if architecture == 'xception':
+        print("TODO: Build Xception call")
+
+    if encoder == None:
+        print("Invalid or unimplemented Encoder architecture")
+        print("Valid options are: 'resnet', 'mobilenet', 'xception'")
+
+    # Build RefineNet using the Encoder
+    model = RefineNetLW(encoder, num_classes)
+
+    # Currently implmeneted for ResNet variants only
+    '''
+    if pretrained:
+        dataset = data_info.get(num_classes, None) # Might cause conflicts later
+        bname = version + '_' + dataset.lower()
+        if architecture == 'resnet':   key = 'rf_lw' + bname
+        if architecture == 'mobilenet': key = 'mb' + bname
+        # Get the URL from the hashmap
+        url = models_urls[bname]
+        # Download and intialise the model to the retrieved pretrain
+        model.load_state_dict(maybe_download(key, url), strict=True)
+        print('Loaded Pretrained Segmentation Network')
+    '''
+
+    return model
 
 # Light Weight Fusion Module
 class Fusion(nn.Module):
@@ -115,171 +243,3 @@ class CRPBlock(nn.Module):
             top = getattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'))(top)
             x = top + x
         return x
-
-# Light Weight RefineNet
-class RefineNetLW(nn.Module):
-
-    def __init__(self, feature_extractor, num_classes):
-        super(RefineNetLW, self).__init__()
-        # Back bone feature extractor from model collection
-        self.encoder = feature_extractor
-
-        # Light Weight RefineNet Decoder layers
-        # 1x1 Dimensionality matching layers
-        self.create_dimMatchers()
-        # CRP Units
-        self.CRP_level1 = self._make_crp(256, 256, 4)
-        self.CRP_level2 = self._make_crp(256, 256, 4)
-        self.CRP_level3 = self._make_crp(256, 256, 4)
-
-        # Inter-Depth Fusion Modules   
-        self.fusion_level3_2 = Fusion(256, 256)      
-        self.fusion_level2_1 = Fusion(256, 256)
-
-        # Deep blocks specific to ResNet implementation
-        if self.encoder.__class__.__name__ == 'RefinedResNet':
-            self.CRP_level4 = self._make_crp(512, 512, 4)
-            self.fusion_level4_3 = Fusion(512, 256)
-        else:
-            self.CRP_level4 = self._make_crp(256, 256, 4)
-            self.fusion_level4_3 = Fusion(256, 256)
-
-        # Classification Layer
-        self.classification = conv3x3(256, num_classes, bias=True)
-
-    # Wrapper to construct Chained Residual Pooling units
-    def _make_crp(self, in_planes, out_planes, stages):
-        layers = [ CRPBlock(in_planes, out_planes,stages) ]
-        return nn.Sequential(*layers)
-
-    # Creates incoming representation dimensionality matching convolutions
-    def create_dimMatchers(self):
-        chnl_sizes = self.encoder_channels()
-        for i in range(len(chnl_sizes)):
-            # ResNet has a larger terminal CRP of 512 channels
-            if  (self.encoder.__class__.__name__ == 'RefinedResNet' and
-                                chnl_sizes[i][1].split('_')[0] == 'level4'):
-                setattr(self, 'dimRed_' + chnl_sizes[i][1], 
-                conv1x1(chnl_sizes[i][0], 512, bias=False) )
-            else:
-                setattr(self, 'dimRed_' + chnl_sizes[i][1], 
-                conv1x1(chnl_sizes[i][0], 256, bias=False) )
-        return
-
-    # Retrieves intermediate representation's number of output channels
-    def encoder_channels(self):
-        # Initialise at level0
-        currentLevel, chnl_sizes = 'level1', []
-        # Get the paramters from the model and their names
-        for name, param in self.encoder.named_parameters():
-            # Stip off the level the paramter is from
-            tmpLevel = name.split('.')[0]
-            # If it is the last layer at the level add its name and size
-            if not tmpLevel == currentLevel:
-                chnl_sizes.append((tmpParam.size()[0], currentLevel))
-                currentLevel = tmpLevel
-            tmpParam = param
-        # Append the last layers name and size
-        chnl_sizes.append((tmpParam.size()[0], tmpLevel))
-        return chnl_sizes   
-    
-    def forward(self, x, gradient_chk=False, upsample=True, decoder=True):
-        # Hacky - gradient checkpoint breaks without this... Seems to add memory
-        x.requires_grad = True
-    	# Encoder representations
-        intermediates = self.encoder(x, gradient_chk)
-        l1, l2, l3, l4 = self.dimensionalityMatch(intermediates)
-        if not decoder: return [l1, l2, l3, l4]
-        # Decoder
-        # Level 4: Deepest representation - 1/32
-        l4 = nn.ReLU()(l4)
-        l4 = self.CRP_level4(l4)
-        # Level 3: Intermediate representaton - 1/16 
-        # Fusion Level 4 and 3
-        l3 = self.fusion_level4_3(l4, l3, l3.size()[2:])
-        l3 = self.CRP_level3(l3)
-        # Level 2: Intermediate representation - 1/8
-        # Fusion Level 3 and 2
-        l2 = self.fusion_level3_2(l3, l2, l2.size()[2:])
-        l2 = self.CRP_level2(l2)
-        # Level 1: Shallowest representation - 1/4
-        # Fusion Level 2 and 1
-        l1 = self.fusion_level2_1(l2, l1, l1.size()[2:])
-        l1 = self.CRP_level1(l1)
-        # Match output channels to number of classes
-        l1 = self.classification(l1)
-        
-        # Upsample the prediction to be the same size as the original image
-        if upsample:
-            return nn.Upsample(size = x.size()[2:], mode = 'bicubic',
-                                                align_corners = False)(l1)
-        else: return l1
-
-    # Dimensionality Matching for each intermediate representation
-    # passed from the encoder network
-    def dimensionalityMatch(self, representations):
-        lastConvName, levelReps, mainRep = ' _ ', [], None
-        for representation in representations:
-            # Retrieve and use the relevant convolotion
-            currentConvName = 'dimRed_' + representation[1]
-            currentRep = getattr(self, currentConvName)(representation[0])
-            # Sum intermediates from the same level after matching
-            if len(currentConvName.split('_')) > 2:
-                same_level_rep = currentRep
-            elif currentConvName.split('_')[1] == lastConvName.split('_')[1]:
-                same_level_rep += currentRep
-                levelReps.append(same_level_rep)
-            else:
-                # Add the final representation for the previous level
-                levelReps.append(currentRep)
-
-            lastConvName = currentConvName
-        # Returns an unpacked list of representations for level 1-4
-        return levelReps[0], levelReps[1], levelReps[2], levelReps[3]
-
-# Builds the specified version of RefineNet
-# num_classes - Number of predictable classes in dataset used
-# model_variant - Type of Encoder to use
-# pretrained - Initialise to a pretrained version of RefineNet 
-def build(num_classes, encoder_variant, pretrained=False, group_norm=False):
-    # Extract architecture and type of encoder
-    architecture = encoder_variant.split('_')[0]
-    version = encoder_variant.split('_')[1]
-    encoder = None
-    
-    if not pretrained: print("Loading ImageNet")
-    else: print("Initialised Randomly")
-
-    # Check if model is implemented
-    if architecture == 'resnet':
-        encoder = refinedResNet.build_ResNet(version, not pretrained, group_norm)
-
-    if architecture == 'mobilenet':
-        encoder = refinedMobilenet.build_MobilenetV2(not pretrained)
-
-    if architecture == 'xception':
-        print("TODO: Build Xception call")
-
-    if encoder == None:
-        print("Invalid or unimplemented Encoder architecture")
-        print("Valid options are: 'resnet', 'mobilenet', 'xception'")
-
-    # Build RefineNet using the Encoder
-    model = RefineNetLW(encoder, num_classes)
-
-    # Currently implmeneted for ResNet variants only
-    '''
-    if pretrained:
-        dataset = data_info.get(num_classes, None) # Might cause conflicts later
-        bname = version + '_' + dataset.lower()
-        if architecture == 'resnet':   key = 'rf_lw' + bname
-        if architecture == 'mobilenet': key = 'mb' + bname
-        # Get the URL from the hashmap
-        url = models_urls[bname]
-        # Download and intialise the model to the retrieved pretrain
-        model.load_state_dict(maybe_download(key, url), strict=True)
-        print('Loaded Pretrained Segmentation Network')
-    '''
-
-    return model
-

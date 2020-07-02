@@ -1,8 +1,8 @@
 '''
     ResNet wrapper of pytorches implementation
-    Enables gradient checkpointing and intermediate
-    feature representations to be returned in the 
-    forward pass to multi-scale decoder networks 
+        Enables gradient checkpointing and intermediate
+        feature representations to be returned in the 
+        forward pass to multi-scale decoder networks 
 '''
 import torch
 import torchvision
@@ -10,8 +10,6 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
-
-from .weight_standardised import models
 
 # Ignores dummy tensor in checkpointed modules
 class Ignore2ndArg(nn.Module):
@@ -26,7 +24,7 @@ class Ignore2ndArg(nn.Module):
 #  decoder interfaceable version
 class RefinedResNet(nn.Module):
 
-    def __init__(self, model):
+    def __init__(self, model, output_stride=8):
         super(RefinedResNet, self).__init__()
         self.level1 = Ignore2ndArg(nn.Sequential(
                                    *list(model.children())[0:4],   
@@ -39,8 +37,17 @@ class RefinedResNet(nn.Module):
                                    *list(model.layer4.children())))
         # Dummy Tensor so that checkpoint can be used on first conv block
         self.dummy = torch.ones(1, requires_grad=True)
-        # Dropout
-        #self.do = nn.Dropout(p=0.5)
+
+        # Example network surgery for deeplabv3+
+        if output_stride == 8:
+            self.level3.module[0].downsample[0].stride = (1, 1)
+            self.level4.module[0].downsample[0].stride = (1, 1)
+            self.level3.module[0].conv2.dilation = (2, 2)
+            self.level4.module[0].conv2.dilation = (4, 4)
+        elif output_stride == 16:
+            self.level4.module[0].downsample[0].stride = (1, 1)
+            self.level4.module[0].conv2.dilation = (2, 2)
+
 
     # Returns intermediate representations for use in RefineNet
     def forward(self, x, gradient_chk=False):
@@ -55,24 +62,20 @@ class RefinedResNet(nn.Module):
             l2 = self.level2(l1)    # 1/8
             l3 = self.level3(l2)    # 1/16
             l4 = self.level4(l3)    # 1/32
-        # Dropout layers
-        #l4 = self.do(l4)
-        #l3 = self.do(l3)
 
         return [(l1, 'level1'), (l2, 'level2'), (l3, 'level3'), (l4, 'level4')]
 
-# Returns the specified variant of ResNet, optionaly loaded with Imagenet
-# pretrained weights or using group normilisation and weight standarsisation
-def build_ResNet(variant = '50', imagenet=False, group_norm=False):
+'''
+    Returns the specified variant of ResNet, optionaly loaded with Imagenet
+        pretrained weights
+'''
+def build_ResNet(variant = '50', imagenet=False):
     model = None
-    model_library = models if group_norm else torchvision.models
-    if group_norm: print("Using Group Normalisation and Weight Standardisation")
-    else: print("Using Batch Normalisation")
-    if variant == '18': model = model_library.resnet18(pretrained = imagenet)
-    if variant == '34': model = model_library.resnet34(pretrained = imagenet)
-    if variant == '50': model = model_library.resnet50(pretrained = imagenet)
-    if variant == '101': model = model_library.resnet101(pretrained = imagenet)
-    if variant == '152': model = model_library.resnet152(pretrained = imagenet)
+    if variant == '18': model = torchvision.models.resnet18(pretrained = imagenet)
+    if variant == '34': model = torchvision.models.resnet34(pretrained = imagenet)
+    if variant == '50': model = torchvision.models.resnet50(pretrained = imagenet)
+    if variant == '101': model = torchvision.models.resnet101(pretrained = imagenet)
+    if variant == '152': model = torchvision.models.resnet152(pretrained = imagenet)
     if model == None:
     	print("Invalid or unimplemented ResNet Variant")
     	print("Valid options are: '18', '32', '50', '101', '152'")

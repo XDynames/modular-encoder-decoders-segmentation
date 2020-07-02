@@ -1,14 +1,16 @@
+from typing import *
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from typing import *
+from encoder_decoder import EncoderDecoder
+from .utils.layer_factory import conv1x1
 
-class DeepLabV3plus(nn.Module):
+class DeepLabV3plus(EncoderDecoder):
     def __init__(
         self,
         backbone: nn.Module,
-        decoder: nn.Module,
         in_channels: int,
         out_channels: int,
         atrous_rates: List[int] = [6, 12, 18],
@@ -17,7 +19,7 @@ class DeepLabV3plus(nn.Module):
 
         self.encoder = backbone
         self.aspp = ASPP(in_channels, out_channels, atrous_rates)
-        self.decoder = decoder
+        self.decoder = self._build_decoder()
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         print('input.size()', input.size())
@@ -31,6 +33,14 @@ class DeepLabV3plus(nn.Module):
         print('out.size()', out.size())
         return out
 
+    def build_dim_reducers(self):
+        encoder_channel_sizes = self.get_representation_channels()
+        for n_channels, level_name in encoder_channel_sizes:
+            # Deeplabv3+ fixed decoder channel width to 48 and uses
+            #   the 1/4 and 1/16
+            if level_name.split()[0] in {'level1', 'level3'}:
+                setattr(self, 'dimRed_' + n_channels[1], 
+                        conv1x1(n_channels[0], 48, bias=False))
 
 class ASPP(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, atrous_rates: List[int]):
@@ -111,6 +121,5 @@ model = DeepLabV3plus(
     in_channels = 3,
     out_channels = 256
     
-
 )
 _ = model(torch.zeros((2, 3, 256, 256)))

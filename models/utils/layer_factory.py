@@ -47,9 +47,15 @@ def conv1x1(in_planes, out_planes, stride=1, bias=False):
 def convbnrelu(in_planes, out_planes, kernel_size, stride=1, groups=1, act=True):
     "conv-batchnorm-relu"
     if act:
-        return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size, stride=stride, padding=int(kernel_size / 2.), groups=groups, bias=False),
-                             batchnorm(out_planes),
-                             nn.ReLU6(inplace=True))
+        return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size,
+                                stride=stride, padding=int(kernel_size / 2.),
+                                groups=groups, bias=False),
+                            batchnorm(out_planes),
+                            nn.ReLU6(inplace=True)
+                            )
     else:
-        return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size, stride=stride, padding=int(kernel_size / 2.), groups=groups, bias=False),
-                             batchnorm(out_planes))
+        return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size,
+                                stride=stride, padding=int(kernel_size / 2.),
+                                groups=groups, bias=False),
+                             batchnorm(out_planes)
+                            )
