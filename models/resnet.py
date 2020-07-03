@@ -16,7 +16,6 @@ from torch.utils.checkpoint import checkpoint
 from .utils.layer_factory import conv3x3
 
 
-
 '''
     Use imported version of Pytorch's ResNet to construct encoder
       decoder interfaceable version

@@ -1,5 +1,3 @@
-from typing import *
-
 import torch
 import torch.nn as nn
 
@@ -12,7 +10,7 @@ class EncoderDecoder(nn.Module):
     '''
     @property
     def _encoder_channels(self):
-        currentLevel, chnl_sizes = 'level1', []
+        currentLevel, chnl_sizes = '_level1', []
         # Get the paramters from the model and their names
         for name, param in self._encoder.named_parameters():
             tmpLevel = name.split('.')[0]

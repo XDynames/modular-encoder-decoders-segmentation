@@ -27,19 +27,21 @@
     OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from typing import *
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from encoder_decoder import EncoderDecoder
-from . import refinedResNet, refinedMobilenet
+from .encoder_decoder import EncoderDecoder
+from . import resnet, mobilenet
 from .utils.helpers import maybe_download
 from .utils.layer_factory import conv1x1, conv3x3
 
 # Light Weight RefineNet
 class RefineNetLW(EncoderDecoder):
 
-    def __init__(self, encoder, num_classes):
+    def __init__(self, encoder: nn.Module, num_classes: int):
         super(RefineNetLW, self).__init__()
         # Back bone feature extractor from model collection
         self._encoder = encoder
@@ -57,7 +59,7 @@ class RefineNetLW(EncoderDecoder):
         self._fusion_level2_1 = Fusion(256, 256)
 
         # Deep blocks specific to ResNet implementation
-        if self.encoder.__class__.__name__ == 'RefinedResNet':
+        if self._encoder.__class__.__name__ == 'RefinedResNet':
             self._crp_level4 = self._make_crp(512, 512, 4)
             self._fusion_level4_3 = Fusion(512, 256)
         else:
@@ -68,37 +70,41 @@ class RefineNetLW(EncoderDecoder):
         self._classification = conv3x3(256, num_classes, bias=True)
 
     # Wrapper to construct Chained Residual Pooling units
-    def _make_crp(self, in_planes, out_planes, stages):
+    def _make_crp(self, in_planes: int, out_planes: int, stages: int):
         layers = [ CRPBlock(in_planes, out_planes,stages) ]
         return nn.Sequential(*layers)
 
     # Creates incoming representation dimensionality matching convolutions
     def _build_dim_reducers(self):
-        chnl_sizes = self.encoder_channels()
+        chnl_sizes = self._encoder_channels
+        print(chnl_sizes)
         for i in range(len(chnl_sizes)):
             # ResNet has a larger terminal CRP of 512 channels
-            if  (self.encoder.__class__.__name__ == 'RefinedResNet' and
-                                chnl_sizes[i][1].split('_')[0] == 'level4'):
-                setattr(self, '_dimRed_' + chnl_sizes[i][1], 
-                conv1x1(chnl_sizes[i][0], 512, bias=False) )
+            if  (self._encoder.__class__.__name__ == 'RefinedResNet' and
+                                chnl_sizes[i][0].split('_')[0] == 'level4'):
+                setattr(self, '_dimRed' + chnl_sizes[i][0], 
+                conv1x1(chnl_sizes[i][1], 512, bias=False) )
             else:
-                setattr(self, '_dimRed_' + chnl_sizes[i][1], 
-                conv1x1(chnl_sizes[i][0], 256, bias=False) )
+                setattr(self, '_dimRed' + chnl_sizes[i][0], 
+                conv1x1(chnl_sizes[i][1], 256, bias=False) )
     
     '''
         Channel dimensionality matching for each intermediate representation
             passed from the encoder network to the decoder
     '''
-    def match_channel_dimension(self, representations):
-        lastConvName, levelReps = ' _ ', []
+    def _match_channel_dimensions(
+        self,
+        representations: List[Tuple[str, torch.Tensor]]
+    ) -> List[torch.Tensor]:
+        lastConvName, levelReps = ' _ _ ', []
         for representation in representations:
             # Retrieve and use the relevant convolotion
-            currentConvName = '_dimRed_' + representation[1]
-            currentRep = getattr(self, currentConvName)(representation[0])
+            currentConvName = '_dimRed_' + representation[0]
+            currentRep = getattr(self, currentConvName)(representation[1])
             # Sum intermediates from the same level after matching
-            if len(currentConvName.split('_')) > 2:
+            if len(currentConvName.split('_')) > 3:
                 same_level_rep = currentRep
-            elif currentConvName.split('_')[1] == lastConvName.split('_')[1]:
+            elif currentConvName.split('_')[2] == lastConvName.split('_')[2]:
                 same_level_rep += currentRep
                 levelReps.append(same_level_rep)
             else:
@@ -109,12 +115,17 @@ class RefineNetLW(EncoderDecoder):
         # List of channel matched representations
         return levelReps
     
-    def forward(self, x, gradient_chk=False, upsample=True):
+    def forward(
+        self,
+        x: torch.Tensor,
+        gradient_chk: bool=False,
+        upsample: bool=True
+    ) -> torch.Tensor:
         # Hacky - gradient checkpoint breaks without this... Seems to add memory
         x.requires_grad = True
     	# Encoder representations
-        intermediates = self.encoder(x, gradient_chk)
-        l1, l2, l3, l4 = self.dimensionalityMatch(intermediates)
+        intermediates = self._encoder(x, gradient_chk)
+        l1, l2, l3, l4 = self._match_channel_dimensions(intermediates)
         # Level 4: Deepest representation - 1/32
         l4 = nn.ReLU()(l4)
         l4 = self._crp_level4(l4)
@@ -141,7 +152,11 @@ class RefineNetLW(EncoderDecoder):
 # num_classes - Number of predictable classes in dataset used
 # model_variant - Type of Encoder to use
 # pretrained - Initialise to a pretrained version of RefineNet 
-def build(num_classes, encoder_variant, pretrained=False, group_norm=False):
+def build(
+    num_classes: int,
+    encoder_variant: str,
+    pretrained: bool=False
+) -> nn.Module:
     # Extract architecture and type of encoder
     architecture = encoder_variant.split('_')[0]
     version = encoder_variant.split('_')[1]
@@ -152,10 +167,10 @@ def build(num_classes, encoder_variant, pretrained=False, group_norm=False):
 
     # Check if model is implemented
     if architecture == 'resnet':
-        encoder = refinedResNet.build_ResNet(version, not pretrained, group_norm)
+        encoder = resnet.build_resnet(version, not pretrained)
 
     if architecture == 'mobilenet':
-        encoder = refinedMobilenet.build_MobilenetV2(not pretrained)
+        encoder = mobilenet.build_mobilenet_v2(not pretrained)
 
     if architecture == 'xception':
         print("TODO: Build Xception call")
@@ -187,7 +202,7 @@ def build(num_classes, encoder_variant, pretrained=False, group_norm=False):
 class Fusion(nn.Module):
     # input(1/2)_chnls - number of channel in the tesnor
     # Input2 is the shallower respresentation from the Encoder
-    def __init__(self, input1_chnls, input2_chnls):
+    def __init__(self, input1_chnls: torch.Tensor, input2_chnls: torch.Tensor):
         super(Fusion, self).__init__()
         # Dimesionality Reducing convolution layers
         self.input2_dimreduce = conv1x1(input2_chnls, input2_chnls, bias=False)
@@ -195,7 +210,12 @@ class Fusion(nn.Module):
 
     # Fuses representations from different levels of the Encoder
     # upsample_size - size of the 
-    def forward(self, input1, input2, upsample_size):
+    def forward(
+        self,
+        input1: torch.Tensor,
+        input2: torch.Tensor,
+        upsample_size: int
+    ) -> torch.Tensor:
         # Deeper representation pre-fuse
         input1 = self.input1_dimreduce(input1)
         input1 = nn.Upsample(size=upsample_size, mode='bilinear',
@@ -214,7 +234,7 @@ class CRPBlock(nn.Module):
     # out_planes - Number of Output channels
     # n_stages -  Number of consecutive maxpool, conv1x1 applications 
     #             (2 in paper implimentation, 4 in code)
-    def __init__(self, in_planes, out_planes, n_stages):
+    def __init__(self, in_planes: int, out_planes: int, n_stages: int):
         super(CRPBlock, self).__init__()
         for i in range(n_stages):
             # Add a seperate 1x1 conv for each stage
@@ -227,7 +247,7 @@ class CRPBlock(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
 
     # Applies consectuive maxpool and 1x1 conv, summing residuals
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         top = x
         for i in range(self.n_stages):
             top = self.maxpool(top)
