@@ -62,7 +62,11 @@ class Decoder(nn.Module):
         self._conv_block = nn.Sequential(convbnrelu(304, 256, 3),
                                         convbnrelu(256, 256, 3))
 
-    def forward(self, low_level_features, aspp_features):
+    def forward(
+        self,
+        low_level_features: torch.Tensor,
+        aspp_features: torch.Tensor
+    ) -> torch.Tensor:
         low_level_features = F.interpolate(low_level_features,
                                             mode='bilinear',
                                             size=aspp_features.shape[2:])

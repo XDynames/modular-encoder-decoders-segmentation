@@ -27,74 +27,45 @@
     OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-
 import torch
 import torch.nn as nn
-
-import numpy as np
+import torch.nn.functional as F
 
 from encoder_decoder import EncoderDecoder
 from . import refinedResNet, refinedMobilenet
 from .utils.helpers import maybe_download
 from .utils.layer_factory import conv1x1, conv3x3
 
-data_info = {
-    7 : 'Person',
-    21: 'VOC',
-    19: 'cityscapes',
-    32: 'camvid',
-    40: 'NYU',
-    60: 'Context'
-    }
-
-models_urls = {
-    '50_person'  : 'https://cloudstor.aarnet.edu.au/plus/s/DzfdzBuyOk1yYWk/download',
-    '101_person' : 'https://cloudstor.aarnet.edu.au/plus/s/0XsqwZWOWUuE4Uo/download',
-    '152_person' : 'https://cloudstor.aarnet.edu.au/plus/s/SohSadvEqXfSTvM/download',
-
-    '50_voc'     : 'https://cloudstor.aarnet.edu.au/plus/s/Nst0gOuoCP08W3G/download',
-    '101_voc'    : 'https://cloudstor.aarnet.edu.au/plus/s/A1qRIctPSwB0TnR/download',
-    '152_voc'    : 'https://cloudstor.aarnet.edu.au/plus/s/qajvUxhl8mayMCM/download',
-
-    '50_nyu'     : 'https://cloudstor.aarnet.edu.au/plus/s/ZAWooBxGPyPsVlN/download',
-    '101_nyu'    : 'https://cloudstor.aarnet.edu.au/plus/s/bOkkdVY4pemBzBe/download',
-    '152_nyu'    : 'https://cloudstor.aarnet.edu.au/plus/s/3nW50w7p7pgrtYh/download',
-
-    '101_context': 'https://cloudstor.aarnet.edu.au/plus/s/iWjdRAamKlrOSnm/download',
-    '152_context': 'https://cloudstor.aarnet.edu.au/plus/s/KOVS1HaEuuTIuI3/download',
-    'v2_voc': 'https://cloudstor.aarnet.edu.au/plus/s/PsEL9uEuxOtIxJV/download', # Not Working
-    }
-
 # Light Weight RefineNet
 class RefineNetLW(EncoderDecoder):
 
-    def __init__(self, feature_extractor, num_classes):
+    def __init__(self, encoder, num_classes):
         super(RefineNetLW, self).__init__()
         # Back bone feature extractor from model collection
-        self.encoder = feature_extractor
+        self._encoder = encoder
 
         # Light Weight RefineNet Decoder layers
         # 1x1 Dimensionality matching layers
-        self.create_dimMatchers()
+        self._build_dim_reducers()
         # CRP Units
-        self.CRP_level1 = self._make_crp(256, 256, 4)
-        self.CRP_level2 = self._make_crp(256, 256, 4)
-        self.CRP_level3 = self._make_crp(256, 256, 4)
+        self._crp_level1 = self._make_crp(256, 256, 4)
+        self._crp_level2 = self._make_crp(256, 256, 4)
+        self._crp_level3 = self._make_crp(256, 256, 4)
 
         # Inter-Depth Fusion Modules   
-        self.fusion_level3_2 = Fusion(256, 256)      
-        self.fusion_level2_1 = Fusion(256, 256)
+        self._fusion_level3_2 = Fusion(256, 256)      
+        self._fusion_level2_1 = Fusion(256, 256)
 
         # Deep blocks specific to ResNet implementation
         if self.encoder.__class__.__name__ == 'RefinedResNet':
-            self.CRP_level4 = self._make_crp(512, 512, 4)
-            self.fusion_level4_3 = Fusion(512, 256)
+            self._crp_level4 = self._make_crp(512, 512, 4)
+            self._fusion_level4_3 = Fusion(512, 256)
         else:
-            self.CRP_level4 = self._make_crp(256, 256, 4)
-            self.fusion_level4_3 = Fusion(256, 256)
+            self._crp_level4 = self._make_crp(256, 256, 4)
+            self._fusion_level4_3 = Fusion(256, 256)
 
         # Classification Layer
-        self.classification = conv3x3(256, num_classes, bias=True)
+        self._classification = conv3x3(256, num_classes, bias=True)
 
     # Wrapper to construct Chained Residual Pooling units
     def _make_crp(self, in_planes, out_planes, stages):
@@ -102,16 +73,16 @@ class RefineNetLW(EncoderDecoder):
         return nn.Sequential(*layers)
 
     # Creates incoming representation dimensionality matching convolutions
-    def build_dim_reducers(self):
+    def _build_dim_reducers(self):
         chnl_sizes = self.encoder_channels()
         for i in range(len(chnl_sizes)):
             # ResNet has a larger terminal CRP of 512 channels
             if  (self.encoder.__class__.__name__ == 'RefinedResNet' and
                                 chnl_sizes[i][1].split('_')[0] == 'level4'):
-                setattr(self, 'dimRed_' + chnl_sizes[i][1], 
+                setattr(self, '_dimRed_' + chnl_sizes[i][1], 
                 conv1x1(chnl_sizes[i][0], 512, bias=False) )
             else:
-                setattr(self, 'dimRed_' + chnl_sizes[i][1], 
+                setattr(self, '_dimRed_' + chnl_sizes[i][1], 
                 conv1x1(chnl_sizes[i][0], 256, bias=False) )
     
     '''
@@ -122,7 +93,7 @@ class RefineNetLW(EncoderDecoder):
         lastConvName, levelReps = ' _ ', []
         for representation in representations:
             # Retrieve and use the relevant convolotion
-            currentConvName = 'dimRed_' + representation[1]
+            currentConvName = '_dimRed_' + representation[1]
             currentRep = getattr(self, currentConvName)(representation[0])
             # Sum intermediates from the same level after matching
             if len(currentConvName.split('_')) > 2:
@@ -138,37 +109,31 @@ class RefineNetLW(EncoderDecoder):
         # List of channel matched representations
         return levelReps
     
-    def forward(self, x, gradient_chk=False, upsample=True, decoder=True):
+    def forward(self, x, gradient_chk=False, upsample=True):
         # Hacky - gradient checkpoint breaks without this... Seems to add memory
         x.requires_grad = True
     	# Encoder representations
         intermediates = self.encoder(x, gradient_chk)
         l1, l2, l3, l4 = self.dimensionalityMatch(intermediates)
-        if not decoder: return [l1, l2, l3, l4]
-        # Decoder
         # Level 4: Deepest representation - 1/32
         l4 = nn.ReLU()(l4)
-        l4 = self.CRP_level4(l4)
+        l4 = self._crp_level4(l4)
         # Level 3: Intermediate representaton - 1/16 
         # Fusion Level 4 and 3
-        l3 = self.fusion_level4_3(l4, l3, l3.size()[2:])
-        l3 = self.CRP_level3(l3)
+        l3 = self._fusion_level4_3(l4, l3, l3.size()[2:])
+        l3 = self._crp_level3(l3)
         # Level 2: Intermediate representation - 1/8
         # Fusion Level 3 and 2
-        l2 = self.fusion_level3_2(l3, l2, l2.size()[2:])
-        l2 = self.CRP_level2(l2)
+        l2 = self._fusion_level3_2(l3, l2, l2.size()[2:])
+        l2 = self._crp_level2(l2)
         # Level 1: Shallowest representation - 1/4
         # Fusion Level 2 and 1
-        l1 = self.fusion_level2_1(l2, l1, l1.size()[2:])
-        l1 = self.CRP_level1(l1)
-        # Match output channels to number of classes
-        l1 = self.classification(l1)
-        
-        # Upsample the prediction to be the same size as the original image
+        l1 = self._fusion_level2_1(l2, l1, l1.size()[2:])
+        l1 = self._crp_level1(l1)
+        l1 = self._classification(l1)
         if upsample:
-            return nn.Upsample(size = x.size()[2:], mode = 'bicubic',
-                                                align_corners = False)(l1)
-        else: return l1
+            l1 = F.interpolate(l1, mode='bicubic', size=x.shape[2:])
+        return l1
 
     
 
@@ -269,3 +234,30 @@ class CRPBlock(nn.Module):
             top = getattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'))(top)
             x = top + x
         return x
+
+data_info = {
+    7 : 'Person',
+    21: 'VOC',
+    19: 'cityscapes',
+    32: 'camvid',
+    40: 'NYU',
+    60: 'Context'
+    }
+
+models_urls = {
+    '50_person'  : 'https://cloudstor.aarnet.edu.au/plus/s/DzfdzBuyOk1yYWk/download',
+    '101_person' : 'https://cloudstor.aarnet.edu.au/plus/s/0XsqwZWOWUuE4Uo/download',
+    '152_person' : 'https://cloudstor.aarnet.edu.au/plus/s/SohSadvEqXfSTvM/download',
+
+    '50_voc'     : 'https://cloudstor.aarnet.edu.au/plus/s/Nst0gOuoCP08W3G/download',
+    '101_voc'    : 'https://cloudstor.aarnet.edu.au/plus/s/A1qRIctPSwB0TnR/download',
+    '152_voc'    : 'https://cloudstor.aarnet.edu.au/plus/s/qajvUxhl8mayMCM/download',
+
+    '50_nyu'     : 'https://cloudstor.aarnet.edu.au/plus/s/ZAWooBxGPyPsVlN/download',
+    '101_nyu'    : 'https://cloudstor.aarnet.edu.au/plus/s/bOkkdVY4pemBzBe/download',
+    '152_nyu'    : 'https://cloudstor.aarnet.edu.au/plus/s/3nW50w7p7pgrtYh/download',
+
+    '101_context': 'https://cloudstor.aarnet.edu.au/plus/s/iWjdRAamKlrOSnm/download',
+    '152_context': 'https://cloudstor.aarnet.edu.au/plus/s/KOVS1HaEuuTIuI3/download',
+    'v2_voc': 'https://cloudstor.aarnet.edu.au/plus/s/PsEL9uEuxOtIxJV/download', # Not Working
+    }
