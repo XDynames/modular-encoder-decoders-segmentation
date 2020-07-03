@@ -21,7 +21,7 @@ from .utils.layer_factory import conv3x3
       decoder interfaceable version
 '''
 class ResnetEncoder(nn.Module):
-    def __init__(self, model: nn.Module, output_stride: int):
+    def __init__(self, model: nn.Module, output_stride: int=32):
         super(ResnetEncoder, self).__init__()
         self._output_stride = output_stride
 

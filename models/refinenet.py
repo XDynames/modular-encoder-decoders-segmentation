@@ -41,7 +41,7 @@ from .utils.layer_factory import conv1x1, conv3x3
 # Light Weight RefineNet
 class RefineNetLW(EncoderDecoder):
 
-    def __init__(self, encoder: nn.Module, num_classes: int):
+    def __init__(self, encoder: nn.Module, num_classes: int, **kwargs):
         super(RefineNetLW, self).__init__()
         # Back bone feature extractor from model collection
         self._encoder = encoder
