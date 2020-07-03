@@ -34,10 +34,10 @@ def batchnorm(in_planes):
     "batch norm 2d"
     return nn.BatchNorm2d(in_planes, affine=True, eps=1e-5, momentum=0.1)
 
-def conv3x3(in_planes, out_planes, stride=1, bias=False):
+def conv3x3(in_planes, out_planes, stride=1, dilation=0, padding=1, bias=False):
     "3x3 convolution with padding"
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=bias)
+                     padding=padding, dilation=dilation, bias=bias)
 
 def conv1x1(in_planes, out_planes, stride=1, bias=False):
     "1x1 convolution"

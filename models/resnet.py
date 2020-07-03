@@ -11,6 +11,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
+from .utils.layer_factory import conv3x3
+
 # Ignores dummy tensor in checkpointed modules
 class Ignore2ndArg(nn.Module):
     def __init__(self, module):
@@ -40,16 +42,23 @@ class ResnetEncoder(nn.Module):
         self._dummy = torch.ones(1, requires_grad=True)
         self._deeplab_surgery()
         
-    # Example network surgery for deeplabv3+
+    # Network surgery for use in deeplabv3+
     def _deeplab_surgery(self):
+        if self._output_stride in {8, 16}:
+            self.level4.module[0].downsample[0].stride = (1, 1)
+            self.level4.module[0].conv2.stride = (1, 1)
+            
         if self._output_stride == 8:
             self.level3.module[0].downsample[0].stride = (1, 1)
-            self.level4.module[0].downsample[0].stride = (1, 1)
             self.level3.module[0].conv2.dilation = (2, 2)
+            self.level3.module[0].conv2.padding = (2, 2)
+            self.level3.module[0].conv2.stride = (1, 1)
             self.level4.module[0].conv2.dilation = (4, 4)
-        elif self._output_stride == 16:
-            self.level4.module[0].downsample[0].stride = (1, 1)
+            self.level4.module[0].conv2.padding = (4, 4)
+        
+        if self._output_stride == 16:
             self.level4.module[0].conv2.dilation = (2, 2)
+            self.level4.module[0].conv2.padding = (2, 2)
 
     # Returns intermediate representations for use in decoder
     # representation spatial size depends on output stride [32,16,8]
@@ -64,6 +73,7 @@ class ResnetEncoder(nn.Module):
             l1 = self.level1(x)     # 1/4
             l2 = self.level2(l1)    # 1/8
             l3 = self.level3(l2)    # 1/16 - 1/8
+            print(l3.shape)
             l4 = self.level4(l3)    # 1/32 - 1/16 - 1/8
 
         return [('level1', l1), ('level2', l2), ('level3', l3), ('level4', l4)]
