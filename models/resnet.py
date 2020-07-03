@@ -73,7 +73,6 @@ class ResnetEncoder(nn.Module):
             l1 = self.level1(x)     # 1/4
             l2 = self.level2(l1)    # 1/8
             l3 = self.level3(l2)    # 1/16 - 1/8
-            print(l3.shape)
             l4 = self.level4(l3)    # 1/32 - 1/16 - 1/8
 
         return [('level1', l1), ('level2', l2), ('level3', l3), ('level4', l4)]

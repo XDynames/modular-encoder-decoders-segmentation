@@ -7,9 +7,7 @@ from models.resnet import build_resnet
 encoder = build_resnet(output_stride=8)
 model = DeepLabV3plus(encoder, 12)
 
-print(encoder.level4.module[0])
-
-from datasets.segmentation import CamVid # Fix this
+from datasets.segmentation import CamVid
 
 dataset = CamVid("../seg_datasets/CamVid")
 image1 = torchvision.transforms.functional.to_tensor(dataset[0][0])
@@ -17,4 +15,7 @@ image2 = torchvision.transforms.functional.to_tensor(dataset[1][0])
 
 images = torch.stack([image1, image2], dim=0)
 
-model(images)
+print('Without gradient checkpointing')
+model(images, False)
+print('\nWith gradient checkpointing')
+model(images, True)

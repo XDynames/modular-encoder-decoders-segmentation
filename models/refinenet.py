@@ -114,6 +114,30 @@ class RefineNetLW(EncoderDecoder):
                 setattr(self, 'dimRed_' + chnl_sizes[i][1], 
                 conv1x1(chnl_sizes[i][0], 256, bias=False) )
     
+    '''
+        Channel dimensionality matching for each intermediate representation
+            passed from the encoder network to the decoder
+    '''
+    def match_channel_dimension(self, representations):
+        lastConvName, levelReps = ' _ ', []
+        for representation in representations:
+            # Retrieve and use the relevant convolotion
+            currentConvName = 'dimRed_' + representation[1]
+            currentRep = getattr(self, currentConvName)(representation[0])
+            # Sum intermediates from the same level after matching
+            if len(currentConvName.split('_')) > 2:
+                same_level_rep = currentRep
+            elif currentConvName.split('_')[1] == lastConvName.split('_')[1]:
+                same_level_rep += currentRep
+                levelReps.append(same_level_rep)
+            else:
+                # Add the final representation for the previous level
+                levelReps.append(currentRep)
+
+            lastConvName = currentConvName
+        # List of channel matched representations
+        return levelReps
+    
     def forward(self, x, gradient_chk=False, upsample=True, decoder=True):
         # Hacky - gradient checkpoint breaks without this... Seems to add memory
         x.requires_grad = True
@@ -145,6 +169,8 @@ class RefineNetLW(EncoderDecoder):
             return nn.Upsample(size = x.size()[2:], mode = 'bicubic',
                                                 align_corners = False)(l1)
         else: return l1
+
+    
 
 # Builds the specified version of RefineNet
 # num_classes - Number of predictable classes in dataset used

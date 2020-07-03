@@ -16,35 +16,44 @@ class DeepLabV3plus(EncoderDecoder):
     ):
         super(DeepLabV3plus, self).__init__()
         self._encoder = backbone
-        self._aspp = ASPP(self._in_channels, 256, atrous_rates)
+        self._aspp = ASPP(self._aspp_in_channels, 256, atrous_rates)
         self._decoder = Decoder()
         self._classification = conv1x1(256, n_classes)
+        self._low_level_reducer = self._build_dim_reducer()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, grad_chk: bool=False) -> torch.Tensor:
         print('input.size()', x.shape)
-        _, l2, _, l4 = self._encoder(x)
-        print('1/4_logits.size()', l2[1].shape)
-        print('1/8 - 1/16 logits', l4[1].shape)
+        
+        _, l2, _, l4 = self._encoder(x, grad_chk)
+        l2, l4 = l2[1], l4[1] # Strip labels
+
+        print('1/4_logits.size()', l2.shape)
+        print('1/8 - 1/16 logits', l4.shape)
+        
+        l2 = self._low_level_reducer(l2)
         aspp_features = self._aspp(l4)
+        
         print('aspp_features.size()', aspp_features.shape)
         print('x.size()', x.shape)
+        
         out = self._decoder(l2, aspp_features)
+        
         print('out.size()', out.shape)
+        
         out = self._classification(out)
+
+        print('class.size()', out.shape)
+
         return F.interpolate(out, mode='bilinear', size=x.shape[2:])
 
-    def _build_dim_reducers(self):
-        encoder_channel_sizes = self.get_representation_channels()
-        for n_channels, level_name in encoder_channel_sizes:
-            # Deeplabv3+ fixed decoder channel width to 48 and uses
-            #   the 1/4 and 1/16
-            if level_name.split('_')[0] in {'level1', 'level4'}:
-                setattr(self, 'dimRed_' + n_channels[1], 
-                        conv1x1(n_channels[0], 48, bias=False))
+    def _build_dim_reducer(self):
+        encoder_channel_sizes = self._encoder_channels
+        return conv1x1(encoder_channel_sizes[1][1], 48, bias=False)
+
     @property
-    def _in_channels(self):
-        channel_sizes = self.get_representation_channels()
-        return channel_sizes[1][1]
+    def _aspp_in_channels(self):
+        channel_sizes = self._encoder_channels
+        return channel_sizes[-1][1]
 
 class Decoder(nn.Module):
     def __init__(self):
