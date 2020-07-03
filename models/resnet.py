@@ -62,20 +62,20 @@ class ResnetEncoder(nn.Module):
     # Network surgery for use in deeplabv3+
     def _deeplab_surgery(self):
         if self._output_stride in {8, 16}:
-            self.level4.module[0].downsample[0].stride = (1, 1)
-            self.level4.module[0].conv2.stride = (1, 1)
+            self._level4.module[0].downsample[0].stride = (1, 1)
+            self._level4.module[0].conv2.stride = (1, 1)
             
         if self._output_stride == 8:
-            self.level3.module[0].downsample[0].stride = (1, 1)
-            self.level3.module[0].conv2.dilation = (2, 2)
-            self.level3.module[0].conv2.padding = (2, 2)
-            self.level3.module[0].conv2.stride = (1, 1)
-            self.level4.module[0].conv2.dilation = (4, 4)
-            self.level4.module[0].conv2.padding = (4, 4)
+            self._level3.module[0].downsample[0].stride = (1, 1)
+            self._level3.module[0].conv2.dilation = (2, 2)
+            self._level3.module[0].conv2.padding = (2, 2)
+            self._level3.module[0].conv2.stride = (1, 1)
+            self._level4.module[0].conv2.dilation = (4, 4)
+            self._level4.module[0].conv2.padding = (4, 4)
         
         if self._output_stride == 16:
-            self.level4.module[0].conv2.dilation = (2, 2)
-            self.level4.module[0].conv2.padding = (2, 2)
+            self._level4.module[0].conv2.dilation = (2, 2)
+            self._level4.module[0].conv2.padding = (2, 2)
 
 # Ignores dummy tensor in checkpointed modules
 class Ignore2ndArg(nn.Module):
