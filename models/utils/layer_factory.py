@@ -30,32 +30,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import torch.nn as nn
 
 # Wrappers for commonly used layers in RefineNet
-def batchnorm(in_planes):
+def batchnorm(in_planes: int) -> nn.Module:
     "batch norm 2d"
     return nn.BatchNorm2d(in_planes, affine=True, eps=1e-5, momentum=0.1)
 
-def conv3x3(in_planes, out_planes, stride=1, dilation=1, padding=1, bias=False):
+def conv3x3(
+    in_planes: int,
+    out_planes: int,
+    stride: int=1,
+    dilation: int=1,
+    padding: int=1,
+    bias: bool=False
+) -> nn.Module:
     "3x3 convolution with padding"
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=padding, dilation=dilation, bias=bias)
 
-def conv1x1(in_planes, out_planes, stride=1, bias=False):
+def conv1x1(
+    in_planes: int,
+    out_planes: int,
+    stride: int=1,
+    bias: bool=False
+) -> nn.Module:
     "1x1 convolution"
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
                      padding=0, bias=bias)
 
-def convbnrelu(in_planes, out_planes, kernel_size, stride=1, groups=1, act=True):
-    "conv-batchnorm-relu"
-    if act:
-        return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size,
-                                stride=stride, padding=int(kernel_size / 2.),
-                                groups=groups, bias=False),
-                            batchnorm(out_planes),
-                            nn.ReLU6(inplace=True)
-                            )
-    else:
-        return nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size,
-                                stride=stride, padding=int(kernel_size / 2.),
-                                groups=groups, bias=False),
-                             batchnorm(out_planes)
-                            )
+def convbnrelu(
+    in_planes: int,
+    out_planes: int,
+    kernel_size: int,
+    stride: int=1,
+    groups: int=1,
+    activation: bool=True
+) -> nn.Sequential:
+    "convolution, batchnorm, relu"
+    layers = [ 
+        nn.Conv2d(
+            in_planes, out_planes, kernel_size, stride=stride,
+            padding=int(kernel_size / 2.), groups=groups, bias=False),
+        batchnorm(out_planes),
+    ]
+    if activation: layers.append(nn.ReLU6(inplace=True))
+    return nn.Sequential(*layers)

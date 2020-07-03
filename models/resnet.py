@@ -21,7 +21,7 @@ from .utils.layer_factory import conv3x3
       decoder interfaceable version
 '''
 class ResnetEncoder(nn.Module):
-    def __init__(self, model: nn.Module, output_stride: int):
+    def __init__(self, model: nn.Module, output_stride: int=32):
         super(ResnetEncoder, self).__init__()
         self._output_stride = output_stride
 
@@ -61,21 +61,25 @@ class ResnetEncoder(nn.Module):
         
     # Network surgery for use in deeplabv3+
     def _deeplab_surgery(self):
+        # Handles Resnet 18 & 32
+        block_type = self._level4.module[0].__class__.__name__
+        conv = 'conv2' if block_type == 'Bottleneck' else 'conv1'
+
         if self._output_stride in {8, 16}:
             self._level4.module[0].downsample[0].stride = (1, 1)
-            self._level4.module[0].conv2.stride = (1, 1)
+            getattr(self._level4.module[0], conv).stride = (1, 1)
             
         if self._output_stride == 8:
             self._level3.module[0].downsample[0].stride = (1, 1)
-            self._level3.module[0].conv2.dilation = (2, 2)
-            self._level3.module[0].conv2.padding = (2, 2)
-            self._level3.module[0].conv2.stride = (1, 1)
-            self._level4.module[0].conv2.dilation = (4, 4)
-            self._level4.module[0].conv2.padding = (4, 4)
+            getattr(self._level3.module[0], conv).dilation = (2, 2)
+            getattr(self._level3.module[0], conv).padding = (2, 2)
+            getattr(self._level3.module[0], conv).stride = (1, 1)
+            getattr(self._level4.module[0], conv).dilation = (4, 4)
+            getattr(self._level4.module[0], conv).padding = (4, 4)
         
         if self._output_stride == 16:
-            self._level4.module[0].conv2.dilation = (2, 2)
-            self._level4.module[0].conv2.padding = (2, 2)
+            getattr(self._level4.module[0], conv).dilation = (2, 2)
+            getattr(self._level4.module[0], conv).padding = (2, 2)
 
 # Ignores dummy tensor in checkpointed modules
 class Ignore2ndArg(nn.Module):

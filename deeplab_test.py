@@ -4,7 +4,7 @@ import torchvision
 from models.deeplabv3plus import DeepLabV3plus
 from models.resnet import build_resnet
 
-encoder = build_resnet(output_stride=8)
+encoder = build_resnet('18', output_stride=8)
 model = DeepLabV3plus(encoder, 12)
 
 from datasets.segmentation import CamVid
