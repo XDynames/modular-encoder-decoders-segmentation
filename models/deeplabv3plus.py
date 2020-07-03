@@ -12,19 +12,28 @@ class DeepLabV3plus(EncoderDecoder):
         self,
         backbone: nn.Module,
         n_classes: int,
+        classification_head: nn.Module = None,
         atrous_rates: List[int] = [6, 12, 18],
-        verbose_sizes: bool = False
+        verbose_sizes: bool = False,
+        interpolation_mode: str = 'bilinear'
     ):
         super(DeepLabV3plus, self).__init__()
         self._encoder = backbone
         self._aspp = ASPP(self._aspp_in_channels, 256, atrous_rates)
-        self._decoder = Decoder()
-        self._classification = conv1x1(256, n_classes)
+        self._decoder = Decoder() 
+        # Optional to add custom classification head
+        if classification_head != None:
+            self._classification = classification_head
+        else:
+            self._classification = conv1x1(256, n_classes)
+
+        self._interpolation_mode = interpolation_mode
         self._low_level_reducer = self._build_dim_reducer()
         self._verbose_sizes = verbose_sizes
 
     def forward(self, x: torch.Tensor, grad_chk: bool=False) -> torch.Tensor:
-        print('input.size()', x.shape)
+        if self._verbose_sizes:
+            print('input.size()', x.shape)
         
         _, l2, _, l4 = self._encoder(x, grad_chk)
         l2, l4 = l2[1], l4[1] # Strip labels
@@ -40,17 +49,17 @@ class DeepLabV3plus(EncoderDecoder):
             print('aspp_features.size()', aspp_features.shape)
             print('x.size()', x.shape)
         
-        out = self._decoder(l2, aspp_features)
+        decoder_out = self._decoder(l2, aspp_features)
         
         if self._verbose_sizes:
-            print('out.size()', out.shape)
+            print('decoder_out.size()', decoder_out.shape)
         
-        out = self._classification(out)
+        out = self._classification(decoder_out)
 
         if self._verbose_sizes:
             print('class.size()', out.shape)
 
-        return F.interpolate(out, mode='bilinear', size=x.shape[2:])
+        return F.interpolate(out, mode=self._interpolation_mode , size=x.shape[2:])
 
     def _build_dim_reducer(self):
         encoder_channel_sizes = self._encoder_channels
@@ -84,7 +93,7 @@ class ASPP(nn.Module):
         super(ASPP, self).__init__()
 
         # build aspp convs
-        self.aspp_convs = self.build_aspp_convs(in_channels, out_channels, atrous_rates)
+        self.aspp_convs = nn.ModuleList(self.build_aspp_convs(in_channels, out_channels, atrous_rates))
 
         self.project = nn.Sequential(
             nn.Conv2d(
