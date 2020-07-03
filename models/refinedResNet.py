@@ -22,10 +22,11 @@ class Ignore2ndArg(nn.Module):
 
 # Use imported version of Pytorch's ResNet to construct encoder
 #  decoder interfaceable version
-class RefinedResNet(nn.Module):
+class ResnetEncoder(nn.Module):
+    def __init__(self, model, output_stride=32):
+        super(ResnetEncoder, self).__init__()
+        self._output_stride = output_stride
 
-    def __init__(self, model, output_stride=8):
-        super(RefinedResNet, self).__init__()
         self.level1 = Ignore2ndArg(nn.Sequential(
                                    *list(model.children())[0:4],   
                                    *list(model.layer1.children())))
@@ -36,34 +37,36 @@ class RefinedResNet(nn.Module):
         self.level4 = Ignore2ndArg(nn.Sequential( 
                                    *list(model.layer4.children())))
         # Dummy Tensor so that checkpoint can be used on first conv block
-        self.dummy = torch.ones(1, requires_grad=True)
-
-        # Example network surgery for deeplabv3+
-        if output_stride == 8:
+        self._dummy = torch.ones(1, requires_grad=True)
+        self._deeplab_surgey()
+        
+    # Example network surgery for deeplabv3+
+    def _deeplab_surgery(self):
+        if self._output_stride == 8:
             self.level3.module[0].downsample[0].stride = (1, 1)
             self.level4.module[0].downsample[0].stride = (1, 1)
             self.level3.module[0].conv2.dilation = (2, 2)
             self.level4.module[0].conv2.dilation = (4, 4)
-        elif output_stride == 16:
+        elif self._output_stride == 16:
             self.level4.module[0].downsample[0].stride = (1, 1)
             self.level4.module[0].conv2.dilation = (2, 2)
 
-
-    # Returns intermediate representations for use in RefineNet
+    # Returns intermediate representations for use in decoder
+    # representation spatial size depends on output stride [32,16,8]
     def forward(self, x, gradient_chk=False):
         if gradient_chk:
-            dummy = self.dummy
+            dummy = self._dummy
             l1 = checkpoint(self.level1, x,  dummy)	# 1/4
             l2 = checkpoint(self.level2, l1, dummy)	# 1/8
-            l3 = checkpoint(self.level3, l2, dummy)	# 1/16
-            l4 = checkpoint(self.level4, l3, dummy)	# 1/32
+            l3 = checkpoint(self.level3, l2, dummy)	# 1/16 - 1/8
+            l4 = checkpoint(self.level4, l3, dummy)	# 1/32 - 1/16 - 1/8
         else:
             l1 = self.level1(x)     # 1/4
             l2 = self.level2(l1)    # 1/8
-            l3 = self.level3(l2)    # 1/16
-            l4 = self.level4(l3)    # 1/32
+            l3 = self.level3(l2)    # 1/16 - 1/8
+            l4 = self.level4(l3)    # 1/32 - 1/16 - 1/8
 
-        return [(l1, 'level1'), (l2, 'level2'), (l3, 'level3'), (l4, 'level4')]
+        return [('level1', l1), ('level2', l2), ('level3', l3), ('level4', l4)]
 
 '''
     Returns the specified variant of ResNet, optionaly loaded with Imagenet
@@ -71,15 +74,15 @@ class RefinedResNet(nn.Module):
 '''
 def build_ResNet(variant = '50', imagenet=False):
     model = None
-    if variant == '18': model = torchvision.models.resnet18(pretrained = imagenet)
-    if variant == '34': model = torchvision.models.resnet34(pretrained = imagenet)
-    if variant == '50': model = torchvision.models.resnet50(pretrained = imagenet)
-    if variant == '101': model = torchvision.models.resnet101(pretrained = imagenet)
-    if variant == '152': model = torchvision.models.resnet152(pretrained = imagenet)
+    if variant == '18': model = torchvision.models.resnet18(imagenet)
+    if variant == '34': model = torchvision.models.resnet34(imagenet)
+    if variant == '50': model = torchvision.models.resnet50(imagenet)
+    if variant == '101': model = torchvision.models.resnet101(imagenet)
+    if variant == '152': model = torchvision.models.resnet152(imagenet)
     if model == None:
     	print("Invalid or unimplemented ResNet Variant")
     	print("Valid options are: '18', '32', '50', '101', '152'")
     # Convert to Encoder-Decoder integtable version
-    model = RefinedResNet(model)
+    model = ResnetEncoder(model)
 
     return model

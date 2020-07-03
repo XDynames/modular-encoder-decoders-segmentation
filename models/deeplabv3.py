@@ -5,42 +5,58 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from encoder_decoder import EncoderDecoder
-from .utils.layer_factory import conv1x1
+from .utils.layer_factory import conv1x1, convbnrelu
 
 class DeepLabV3plus(EncoderDecoder):
     def __init__(
         self,
         backbone: nn.Module,
+        n_classes: int,
         in_channels: int,
         out_channels: int,
         atrous_rates: List[int] = [6, 12, 18],
     ):
         super(DeepLabV3plus, self).__init__()
 
-        self.encoder = backbone
-        self.aspp = ASPP(in_channels, out_channels, atrous_rates)
-        self.decoder = self._build_decoder()
+        self._encoder = backbone
+        self._aspp = ASPP(in_channels, out_channels, atrous_rates)
+        self._decoder = Decoder()
+        self._classification = conv1x1(256, n_classes)
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        print('input.size()', input.size())
-        backbone_logits = self.encoder(input)
-        print('backbone_logits.size()', backbone_logits.size())
-        aspp_features = self.aspp(input)
-        print('aspp_features.size()', aspp_features.size())
-        x = torch.cat([backbone_logits, aspp_features], axis=1)
-        print('x.size()', x.size())
-        out = self.decoder(x)
-        print('out.size()', out.size())
-        return out
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        print('input.size()', x.shape)
+        _, l2, _, l4 = self._encoder(x)
+        print('1/4_logits.size()', l2[1].shape)
+        print('1/8 - 1/16 logits', l4[1].shape)
+        aspp_features = self._aspp(l4)
+        print('aspp_features.size()', aspp_features.shape)
+        print('x.size()', x.shape)
+        out = self._decoder(l2, aspp_features)
+        print('out.size()', out.shape)
+        out = self._classification(out)
+        return F.interpolate(out, mode='bilinear', size=x.shape[2:])
 
     def build_dim_reducers(self):
         encoder_channel_sizes = self.get_representation_channels()
         for n_channels, level_name in encoder_channel_sizes:
             # Deeplabv3+ fixed decoder channel width to 48 and uses
             #   the 1/4 and 1/16
-            if level_name.split()[0] in {'level1', 'level3'}:
+            if level_name.split('_')[0] in {'level1', 'level4'}:
                 setattr(self, 'dimRed_' + n_channels[1], 
                         conv1x1(n_channels[0], 48, bias=False))
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
+        self._conv_block = nn.Sequential([convbnrelu(304, 256, 3),
+                                          convbnrelu(256, 256, 3)])
+
+    def forward(self, low_level_features, aspp_features):
+        low_level_features = F.interpolate(low_level_features,
+                                            mode='bilinear',
+                                            size=aspp_features.shape[2:])
+        x = torch.cat([low_level_features, aspp_features], axis=1)
+        return self._conv_block(x)
 
 class ASPP(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, atrous_rates: List[int]):
