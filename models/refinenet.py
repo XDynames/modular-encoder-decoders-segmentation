@@ -77,16 +77,15 @@ class RefineNetLW(EncoderDecoder):
     # Creates incoming representation dimensionality matching convolutions
     def _build_dim_reducers(self):
         chnl_sizes = self._encoder_channels
-        print(chnl_sizes)
         for i in range(len(chnl_sizes)):
             # ResNet has a larger terminal CRP of 512 channels
             if  (self._encoder.__class__.__name__ == 'RefinedResNet' and
                                 chnl_sizes[i][0].split('_')[0] == 'level4'):
                 setattr(self, '_dimRed' + chnl_sizes[i][0], 
-                conv1x1(chnl_sizes[i][1], 512, bias=False) )
+                conv1x1(chnl_sizes[i][1], 512, bias=False))
             else:
                 setattr(self, '_dimRed' + chnl_sizes[i][0], 
-                conv1x1(chnl_sizes[i][1], 256, bias=False) )
+                conv1x1(chnl_sizes[i][1], 256, bias=False))
     
     '''
         Channel dimensionality matching for each intermediate representation

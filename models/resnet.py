@@ -25,14 +25,14 @@ class ResnetEncoder(nn.Module):
         super(ResnetEncoder, self).__init__()
         self._output_stride = output_stride
 
-        self.level1 = Ignore2ndArg(nn.Sequential(
+        self._level1 = Ignore2ndArg(nn.Sequential(
                                    *list(model.children())[0:4],   
                                    *list(model.layer1.children())))
-        self.level2 = Ignore2ndArg(nn.Sequential(
+        self._level2 = Ignore2ndArg(nn.Sequential(
                                    *list(model.layer2.children())))
-        self.level3 = Ignore2ndArg(nn.Sequential( 
+        self._level3 = Ignore2ndArg(nn.Sequential( 
                                    *list(model.layer3.children())))
-        self.level4 = Ignore2ndArg(nn.Sequential( 
+        self._level4 = Ignore2ndArg(nn.Sequential( 
                                    *list(model.layer4.children())))
         # Dummy Tensor so that checkpoint can be used on first conv block
         self._dummy = torch.ones(1, requires_grad=True)
@@ -47,15 +47,15 @@ class ResnetEncoder(nn.Module):
     ) -> List[Tuple[str, torch.Tensor]]:
         if gradient_chk:
             dummy = self._dummy
-            l1 = checkpoint(self.level1, x,  dummy)	# 1/4
-            l2 = checkpoint(self.level2, l1, dummy)	# 1/8
-            l3 = checkpoint(self.level3, l2, dummy)	# 1/16 - 1/8
-            l4 = checkpoint(self.level4, l3, dummy)	# 1/32 - 1/16 - 1/8
+            l1 = checkpoint(self._level1, x,  dummy)	# 1/4
+            l2 = checkpoint(self._level2, l1, dummy)	# 1/8
+            l3 = checkpoint(self._level3, l2, dummy)	# 1/16 - 1/8
+            l4 = checkpoint(self._level4, l3, dummy)	# 1/32 - 1/16 - 1/8
         else:
-            l1 = self.level1(x)     # 1/4
-            l2 = self.level2(l1)    # 1/8
-            l3 = self.level3(l2)    # 1/16 - 1/8
-            l4 = self.level4(l3)    # 1/32 - 1/16 - 1/8
+            l1 = self._level1(x)     # 1/4
+            l2 = self._level2(l1)    # 1/8
+            l3 = self._level3(l2)    # 1/16 - 1/8
+            l4 = self._level4(l3)    # 1/32 - 1/16 - 1/8
 
         return [('level1', l1), ('level2', l2), ('level3', l3), ('level4', l4)]
         
