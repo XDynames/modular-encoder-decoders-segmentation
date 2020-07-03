@@ -41,9 +41,9 @@ class EncoderDecoder(nn.Module):
             tmpLevel = name.split('.')[0]
             # If it is the last layer of a level, add its name and size
             if not tmpLevel == currentLevel:
-                chnl_sizes.append((tmpParam.size()[0], currentLevel))
+                chnl_sizes.append((currentLevel, tmpParam.size()[0]))
                 currentLevel = tmpLevel
             tmpParam = param
         
-        chnl_sizes.append((tmpParam.size()[0], tmpLevel))
+        chnl_sizes.append((tmpLevel, tmpParam.size()[0]))
         return chnl_sizes 

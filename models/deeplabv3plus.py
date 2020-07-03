@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from encoder_decoder import EncoderDecoder
+from .encoder_decoder import EncoderDecoder
 from .utils.layer_factory import conv1x1, convbnrelu
 
 class DeepLabV3plus(EncoderDecoder):
@@ -12,14 +12,11 @@ class DeepLabV3plus(EncoderDecoder):
         self,
         backbone: nn.Module,
         n_classes: int,
-        in_channels: int,
-        out_channels: int,
         atrous_rates: List[int] = [6, 12, 18],
     ):
         super(DeepLabV3plus, self).__init__()
-
         self._encoder = backbone
-        self._aspp = ASPP(in_channels, out_channels, atrous_rates)
+        self._aspp = ASPP(self._in_channels, 256, atrous_rates)
         self._decoder = Decoder()
         self._classification = conv1x1(256, n_classes)
 
@@ -36,7 +33,7 @@ class DeepLabV3plus(EncoderDecoder):
         out = self._classification(out)
         return F.interpolate(out, mode='bilinear', size=x.shape[2:])
 
-    def build_dim_reducers(self):
+    def _build_dim_reducers(self):
         encoder_channel_sizes = self.get_representation_channels()
         for n_channels, level_name in encoder_channel_sizes:
             # Deeplabv3+ fixed decoder channel width to 48 and uses
@@ -44,12 +41,17 @@ class DeepLabV3plus(EncoderDecoder):
             if level_name.split('_')[0] in {'level1', 'level4'}:
                 setattr(self, 'dimRed_' + n_channels[1], 
                         conv1x1(n_channels[0], 48, bias=False))
+    @property
+    def _in_channels(self):
+        channel_sizes = self.get_representation_channels()
+        return channel_sizes[1][1]
 
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
-        self._conv_block = nn.Sequential([convbnrelu(304, 256, 3),
-                                          convbnrelu(256, 256, 3)])
+        # 48 channels from low level features onto 256 from ASPP
+        self._conv_block = nn.Sequential(convbnrelu(304, 256, 3),
+                                        convbnrelu(256, 256, 3))
 
     def forward(self, low_level_features, aspp_features):
         low_level_features = F.interpolate(low_level_features,
@@ -122,20 +124,3 @@ class ASPPPooling(nn.Sequential):
         x = super(ASPPPooling, self).forward(x)
         return F.interpolate(x, size=size, mode='bilinear', align_corners=False)
     
-model = DeepLabV3plus(
-    backbone = nn.Sequential(
-        nn.Conv2d(3, 256, 3, padding=1, bias=False),
-        nn.BatchNorm2d(256),
-        nn.ReLU(inplace=True),
-    ),
-    decoder = nn.Sequential(
-        nn.Conv2d(512, 256, 3, padding=1, bias=False),
-        nn.BatchNorm2d(256),
-        nn.ReLU(inplace=True),
-        nn.Conv2d(256, 16, 1)
-    ),
-    in_channels = 3,
-    out_channels = 256
-    
-)
-_ = model(torch.zeros((2, 3, 256, 256)))

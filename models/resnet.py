@@ -23,7 +23,7 @@ class Ignore2ndArg(nn.Module):
 # Use imported version of Pytorch's ResNet to construct encoder
 #  decoder interfaceable version
 class ResnetEncoder(nn.Module):
-    def __init__(self, model, output_stride=32):
+    def __init__(self, model, output_stride):
         super(ResnetEncoder, self).__init__()
         self._output_stride = output_stride
 
@@ -38,7 +38,7 @@ class ResnetEncoder(nn.Module):
                                    *list(model.layer4.children())))
         # Dummy Tensor so that checkpoint can be used on first conv block
         self._dummy = torch.ones(1, requires_grad=True)
-        self._deeplab_surgey()
+        self._deeplab_surgery()
         
     # Example network surgery for deeplabv3+
     def _deeplab_surgery(self):
@@ -72,7 +72,7 @@ class ResnetEncoder(nn.Module):
     Returns the specified variant of ResNet, optionaly loaded with Imagenet
         pretrained weights
 '''
-def build_ResNet(variant = '50', imagenet=False):
+def build_resnet(variant = '50', imagenet=False, output_stride=32):
     model = None
     if variant == '18': model = torchvision.models.resnet18(imagenet)
     if variant == '34': model = torchvision.models.resnet34(imagenet)
@@ -83,6 +83,6 @@ def build_ResNet(variant = '50', imagenet=False):
     	print("Invalid or unimplemented ResNet Variant")
     	print("Valid options are: '18', '32', '50', '101', '152'")
     # Convert to Encoder-Decoder integtable version
-    model = ResnetEncoder(model)
+    model = ResnetEncoder(model, output_stride)
 
     return model
