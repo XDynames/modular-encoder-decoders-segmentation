@@ -13,6 +13,7 @@ class DeepLabV3plus(EncoderDecoder):
         backbone: nn.Module,
         n_classes: int,
         atrous_rates: List[int] = [6, 12, 18],
+        verbose_sizes: bool = False
     ):
         super(DeepLabV3plus, self).__init__()
         self._encoder = backbone
@@ -20,6 +21,7 @@ class DeepLabV3plus(EncoderDecoder):
         self._decoder = Decoder()
         self._classification = conv1x1(256, n_classes)
         self._low_level_reducer = self._build_dim_reducer()
+        self._verbose_sizes = verbose_sizes
 
     def forward(self, x: torch.Tensor, grad_chk: bool=False) -> torch.Tensor:
         print('input.size()', x.shape)
@@ -27,22 +29,26 @@ class DeepLabV3plus(EncoderDecoder):
         _, l2, _, l4 = self._encoder(x, grad_chk)
         l2, l4 = l2[1], l4[1] # Strip labels
 
-        print('1/4_logits.size()', l2.shape)
-        print('1/8 - 1/16 logits', l4.shape)
+        if self._verbose_sizes:
+            print('1/4_logits.size()', l2.shape)
+            print('1/8 - 1/16 logits', l4.shape)
         
         l2 = self._low_level_reducer(l2)
         aspp_features = self._aspp(l4)
         
-        print('aspp_features.size()', aspp_features.shape)
-        print('x.size()', x.shape)
+        if self._verbose_sizes:
+            print('aspp_features.size()', aspp_features.shape)
+            print('x.size()', x.shape)
         
         out = self._decoder(l2, aspp_features)
         
-        print('out.size()', out.shape)
+        if self._verbose_sizes:
+            print('out.size()', out.shape)
         
         out = self._classification(out)
 
-        print('class.size()', out.shape)
+        if self._verbose_sizes:
+            print('class.size()', out.shape)
 
         return F.interpolate(out, mode='bilinear', size=x.shape[2:])
 
