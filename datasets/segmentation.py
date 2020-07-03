@@ -107,7 +107,7 @@ class CustomCityscapes(Cityscapes):
             if self.transforms:
                 print("+++++TRANSFORM+++++")
                 print(np.unique(target))
-                image, target = self.transforms(target, image)
+                image, target = self.transforms(image, target)
                 # New Code: maps labels not evaluated against to -100
                 print(target.unique())
                 target = self._encode_target(target)
@@ -141,7 +141,7 @@ class CustomVOC(VOCSegmentation):
         target = Image.open(self.masks[index])
 
         if self.transforms is not None:
-            img, target = self.transforms(target, img)
+            img, target = self.transforms(img, target)
 
             # New Code: maps labels from [0,1] to [0, 20]
             # 			with an ignore label of -100
@@ -180,7 +180,7 @@ class CustomDataset(Dataset):
                 image = self._transforms[self._stage](image)
                 target = self._transforms[self._stage+'GT'](target)
             else:
-                image, target = self._transforms[self._stage](target, image)
+                image, target = self._transforms[self._stage](image, target)
             # Encode loaded map to integer labels
             target = self._encode_target(target)
 

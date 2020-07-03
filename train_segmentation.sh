@@ -11,9 +11,11 @@ CUDA_VISIBLE_DEVICES="1" python train_segmentation.py \
 	--imagenet True \
 	--batch_size 24 \
 	--val_batch_size  32 \
+	--val_interval 10 \
 	--lr 0.003 \
 	--decay 1e-5 \
 	--momentum 0.9 \
 	--num_epochs 300 \
 	--amp_level O2 \
+	--gradient_ckpt False \
 	--gpus "0"
