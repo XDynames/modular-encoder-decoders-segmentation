@@ -81,6 +81,9 @@ class SegmentationTrainer(pl.LightningModule):
         self._loss = nn.CrossEntropyLoss()
         self._grad_ckpt = hparams.gradient_ckpt
         self._eval_metric = metrics.classification.IoU()
+        self._device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu"
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self._model(x, self._grad_ckpt)
@@ -101,6 +104,12 @@ class SegmentationTrainer(pl.LightningModule):
         tensorboard_logs = {'train_loss': loss,
                             'train_IoU':batch_IoU }
         return { 'loss': loss, 'log' : tensorboard_logs }
+    
+    def training_epoch_end(self, outputs: List[Dict]) -> Dict:
+        max_mem = torch.cuda.max_memory_allocated(self._device)
+        print(f"Maximium Memory: {max_mem/1073741824}")
+        return {}
+
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Dict:
         images, targets = batch
@@ -112,7 +121,7 @@ class SegmentationTrainer(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: List[Dict]) -> Dict:
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        avg_IoU = np.mean([x['val_IoU'] for x in outputs])
+        avg_IoU = np.mean([x['val_IoU'].item() for x in outputs])
 
         tensorboard_logs = {'val_loss': avg_loss, 'val_IoU': avg_IoU}
 

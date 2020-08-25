@@ -141,7 +141,7 @@ class CustomVOC(VOCSegmentation):
         target = Image.open(self.masks[index])
 
         if self.transforms is not None:
-            img, target = self.transforms(img, target)
+            img, target = self.transforms(target, img)
 
             # New Code: maps labels from [0,1] to [0, 20]
             # 			with an ignore label of -100
@@ -211,22 +211,19 @@ class CamVid(CustomDataset):
         # Flag for which filelist/transform to be used
         self._stage = 'train'
         # Store list of image GT pairs for each section
-        self._sampleFiles = { 'train': self._readImageList('train'),
-                              'val':   self._readImageList('val') }
+        self._sampleFiles = { 'train': self._getImageList('train'),
+                              'val':   self._getImageList('val') }
     
     # Infer set lists from root directory and strip
     # filenames for raw and annotated images
-    def _readImageList(self, stage: str):
-        fileName = stage + '.txt'
-        # Read in the index file as one string
-        with open(os.path.join(self._root, fileName), 'rb') as file:
-            raw_list = file.readlines()
-        # Lambda to strip and split index file string
-        format_indexs = lambda x:x.decode('utf-8').strip('\n\r').split(' ')
-        # Create a list of all file pairs (image, ground truth)
-        file_pairs = [ (os.path.join('image', image),
-                        os.path.join('mask', GT))
-                        for image, GT in map(format_indexs, raw_list) ]
+    def _getImageList(self, stage: str):
+        imageFiles = os.listdir(os.path.join(self._root, stage))
+        targetFiles = os.listdir(os.path.join(self._root, '-'.join([stage,'mask'])))
+        file_pairs = [ (
+            os.path.join(stage, image),
+            os.path.join('-'.join([stage, 'mask']), gt)
+            ) for image, gt in zip(imageFiles, targetFiles)
+        ]
         return file_pairs
 
     # Override _encode_target for CamVid

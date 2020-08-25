@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES="1" python train_segmentation.py \
 	--dataset_dir ../seg_datasets/CamVid/ \
 	--decoder refinenet \
 	--encoder resnet_18 \
-	--imagenet True \
+	--imagenet \
 	--batch_size 24 \
 	--val_batch_size  32 \
 	--val_interval 10 \
@@ -25,7 +25,7 @@ CUDA_VISIBLE_DEVICES="1" python train_segmentation.py \
 	--atrous_rates 6,12,18 \
 	--output_stride 16 \
 	--encoder resnet_18 \
-	--imagenet True \
+	--imagenet \
 	--batch_size 24 \
 	--val_batch_size  32 \
 	--val_interval 10 \

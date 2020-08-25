@@ -29,7 +29,7 @@ def get_training_arguments() -> argparse.Namespace:
 	parser.add_argument('--atrous_rates', type=lambda x:[int(y) for y in x.split(',')],
 							default='6,12,18',
 							help='Dilation rates used in ASPP layer for deeplabv3+')
-	parser.add_argument('--imagenet', type=str, default='False',
+	parser.add_argument('--imagenet', action="store_true",
 							help="Intiialises model wieghts with imagenet pretrain")
 	parser.add_argument('--momentum', type=float, default=0.0,
 							help='Momentum parameter for optimiser')
