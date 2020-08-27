@@ -11,12 +11,11 @@ def main():
     args = get_training_arguments()
     format_arguments(args)
     mode = get_training_mode(args)
-    checkpoint_callback = configure_checkpointer(args)
 
     trainer = Trainer(
         accumulate_grad_batches=args.accumulate_grad_batches,
         check_val_every_n_epoch=args.val_interval,
-        checkpoint_callback=checkpoint_callback,
+        default_root_dir=args.ckpt_path,
         max_epochs=args.num_epochs,
         early_stop_callback=False,
         distributed_backend=mode,
@@ -29,12 +28,10 @@ def main():
     model = SegmentationTrainer(args)
     trainer.fit(model)
 
-def configure_checkpointer(args):
-    return ModelCheckpoint(filepath=args.ckpt_path)
-
 def format_arguments(args):
     # Lightning Modules can't store None
     args.val_interval = 1 if args.val_interval is None else args.val_interval
+    args.ckpt_path = None if args.ckpt_path == 'None' else args.ckpt_path
 
 def get_training_mode(args):
     return 'ddp' if len(args.gpus) > 1  else None
