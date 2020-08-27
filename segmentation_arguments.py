@@ -46,11 +46,13 @@ def get_training_arguments() -> argparse.Namespace:
 	# Resourcing
 	parser.add_argument('--gpus', type=str, default="",
 							help='Which GPUs to use')
-	parser.add_argument('--gradient_ckpt', type=str, default='False',
+	parser.add_argument('--gradient_ckpt', ation='store_true',
 							help="Gradient checkpoints encoder modules")
-	# Resume from checkpoint
-	parser.add_argument('--ckpt_filename', type=str, default="None",
+	# Checkpoint settings
+	parser.add_argument('--resume_from_ckpt_path', type=str, default="None",
 							help='Path to model wieghts file')
+	parser.add_argument('--ckpt_path', type=str, default='None', 
+							help="Path to save model checkpoints to")
 	return parser.parse_args()
 
 def get_testing_arguments() -> argparse.Namespace:

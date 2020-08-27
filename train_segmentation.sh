@@ -15,7 +15,7 @@ CUDA_VISIBLE_DEVICES="1" python train_segmentation.py \
 	--momentum 0.9 \
 	--num_epochs 300 \
 	--amp_level O2 \
-	--gradient_ckpt False \
+	--gradient_ckpt \
 	--gpus "0"
 
 CUDA_VISIBLE_DEVICES="1" python train_segmentation.py \
@@ -34,5 +34,5 @@ CUDA_VISIBLE_DEVICES="1" python train_segmentation.py \
 	--momentum 0.9 \
 	--num_epochs 300 \
 	--amp_level O2 \
-	--gradient_ckpt False \
+	--gradient_ckpt \
 	--gpus "0"
