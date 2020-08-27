@@ -46,7 +46,7 @@ def get_training_arguments() -> argparse.Namespace:
 	# Resourcing
 	parser.add_argument('--gpus', type=str, default="",
 							help='Which GPUs to use')
-	parser.add_argument('--gradient_ckpt', ation='store_true',
+	parser.add_argument('--gradient_ckpt', action='store_true',
 							help="Gradient checkpoints encoder modules")
 	# Checkpoint settings
 	parser.add_argument('--resume_from_ckpt_path', type=str, default="None",
