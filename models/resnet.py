@@ -18,7 +18,7 @@ from .utils.layer_factory import conv3x3
 
 '''
     Use imported version of Pytorch's ResNet to construct encoder
-      decoder interfaceable version
+      decoder interfacable version
 '''
 class ResnetEncoder(nn.Module):
     def __init__(self, model: nn.Module, output_stride: int=32):

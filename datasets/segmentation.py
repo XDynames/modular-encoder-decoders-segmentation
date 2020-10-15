@@ -74,12 +74,12 @@ def build_dataset(
                                             transforms = transform)
 
 # Override of pytorch Cityscapes dataset to ensure appropriate label
-# formating when loading ground truth segmentation maps
+# formatting when loading ground truth segmentation maps
 class CustomCityscapes(Cityscapes):
-    ''' Classes that are not assesed
+    ''' Classes that are not assessed
         void_classes = [ 0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15,
                                          16, 18, 29, 30, -1 ]
-        # Classes that are assesed
+        # Classes that are assessed
         valid_classes = [ 7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
                           23, 24, 25, 26, 27, 28, 31, 32, 33 ]
     '''
@@ -114,7 +114,7 @@ class CustomCityscapes(Cityscapes):
                 print(target.unique())
             return image, target
 
-    # Override to load trainning ID's directly
+    # Override to load training ID's directly
     def _get_target_suffix(self, mode: str, target_type: str) -> str:
         if target_type == 'instance':
             return '{}_instanceIds.png'.format(mode)
@@ -125,13 +125,13 @@ class CustomCityscapes(Cityscapes):
         else:
             return '{}_polygons.json'.format(mode)
 
-# Override of pytorch Pascal VOC segmentaton dataset to ensure
-# appropriate label formating when loading ground truth segmentation maps
+# Override of pytorch Pascal VOC segmentation dataset to ensure
+# appropriate label formatting when loading ground truth segmentation maps
 class CustomVOC(VOCSegmentation):
     def _encode_target(self, target: torch.Tensor) -> torch.LongTensor:
-        # Re-scale to interger labels from [0,1]
+        # Re-scale to integer labels from [0,1]
         target = target * 255
-        # Set any lables above 21 to the ignore label
+        # Set any labels above 21 to the ignore label
         target[(target > 21)] = -100
         return target.long()
 
@@ -154,7 +154,7 @@ class CustomDataset(Dataset):
     # Returns the number of the current stages file pairs
     def __len__(self):  return len(self._sampleFiles[self._stage])
 
-    # Identity function to be overriden in each dataset's implementation
+    # Identity function to be overridden in each dataset's implementation
     def _encode_target(self, target: torch.Tensor) -> torch.Tensor:
         return target
 
@@ -234,7 +234,7 @@ class CamVid(CustomDataset):
 
 
 class KITTI(CustomDataset):
-    # KITTI Visison Benchmark Suite
+    # KITTI Vision Benchmark Suite
     # http://www.cvlibs.net/datasets/kitti/
 
     def __init__(
@@ -256,8 +256,8 @@ class KITTI(CustomDataset):
         # Flag for which filelist/transform to be used
         self._stage = 'train'
 
-        # Build a list of files for images and groud truths
-        # for the folder sturcture
+        # Build a list of files for images and group truths
+        # for the folder structure
         imageFiles = os.listdir(os.path.join(self._root, 'training','image_2'))
         targetFiles = os.listdir(os.path.join(self._root, 'training','semantic_trainID'))
         valImageFiles = os.listdir(os.path.join(self._root, 'val','image_2'))
@@ -270,14 +270,14 @@ class KITTI(CustomDataset):
                           os.path.join('val','semantic_trainID', GT)) 
                           for image, GT in zip(valImageFiles, valTargetFiles) ]
     
-        # Store the list of samples as training and valdiation
+        # Store the list of samples as training and validation
         self._sampleFiles = { 'train': trainSamples,
                               'val': valSamples }
 
-    ''' Classes that are not assesed
+    ''' Classes that are not assessed
         void_classes = [ 0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15,
                                          16, 18, 29, 30, -1 ]
-        # Classes that are assesed
+        # Classes that are assessed
         valid_classes = [ 7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
                           23, 24, 25, 26, 27, 28, 31, 32, 33 ]
     '''

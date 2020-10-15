@@ -23,7 +23,7 @@ encoder_types = {
     'resnet' : resnet.ResnetEncoder,
     'mobilenet' : mobilenet.MobilenetV2Encoder,
 }
-# Add your own encoders implmentations here
+# Add your own encoders implementations here
 encoder_variants = {
     'resnet_18': torchvision.models.resnet18,
     'resnet_34'  : torchvision.models.resnet34,
@@ -54,7 +54,7 @@ class SegmentationTrainer(pl.LightningModule):
         )
         return decoder
 
-    # TODO: Add options for different optimisers and schedulers
+    # TODO: Add options for different optimizers and schedulers
     def configure_optimizers(self) -> torch.optim.Optimizer:
         hparams = self.hparams
 
@@ -107,7 +107,7 @@ class SegmentationTrainer(pl.LightningModule):
     
     def training_epoch_end(self, outputs: List[Dict]) -> Dict:
         max_mem = torch.cuda.max_memory_allocated(self._device)
-        print(f"Maximium Memory: {max_mem/1073741824}")
+        print(f"Maximum Memory: {max_mem/1073741824}")
         return {}
 
 

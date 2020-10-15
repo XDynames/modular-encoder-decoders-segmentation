@@ -97,7 +97,7 @@ class RefineNetLW(EncoderDecoder):
     ) -> List[torch.Tensor]:
         lastConvName, levelReps = ' _ _ ', []
         for representation in representations:
-            # Retrieve and use the relevant convolotion
+            # Retrieve and use the relevant convolution
             currentConvName = '_dimRed_' + representation[0]
             currentRep = getattr(self, currentConvName)(representation[1])
             # Sum intermediates from the same level after matching
@@ -128,7 +128,7 @@ class RefineNetLW(EncoderDecoder):
         # Level 4: Deepest representation - 1/32
         l4 = nn.ReLU()(l4)
         l4 = self._crp_level4(l4)
-        # Level 3: Intermediate representaton - 1/16 
+        # Level 3: Intermediate representation - 1/16 
         # Fusion Level 4 and 3
         l3 = self._fusion_level4_3(l4, l3, l3.size()[2:])
         l3 = self._crp_level3(l3)
@@ -181,7 +181,7 @@ def build(
     # Build RefineNet using the Encoder
     model = RefineNetLW(encoder, num_classes)
 
-    # Currently implmeneted for ResNet variants only
+    # Currently implemented for ResNet variants only
     '''
     if pretrained:
         dataset = data_info.get(num_classes, None) # Might cause conflicts later
@@ -190,7 +190,7 @@ def build(
         if architecture == 'mobilenet': key = 'mb' + bname
         # Get the URL from the hashmap
         url = models_urls[bname]
-        # Download and intialise the model to the retrieved pretrain
+        # Download and initialise the model to the retrieved pretrain
         model.load_state_dict(maybe_download(key, url), strict=True)
         print('Loaded Pretrained Segmentation Network')
     '''
@@ -200,10 +200,10 @@ def build(
 # Light Weight Fusion Module
 class Fusion(nn.Module):
     # input(1/2)_chnls - number of channel in the tesnor
-    # Input2 is the shallower respresentation from the Encoder
+    # Input2 is the shallower representation from the Encoder
     def __init__(self, input1_chnls: torch.Tensor, input2_chnls: torch.Tensor):
         super(Fusion, self).__init__()
-        # Dimesionality Reducing convolution layers
+        # Dimensionality Reducing convolution layers
         self.input2_dimreduce = conv1x1(input2_chnls, input2_chnls, bias=False)
         self.input1_dimreduce = conv1x1(input1_chnls, input2_chnls, bias=False)
 
@@ -232,11 +232,11 @@ class CRPBlock(nn.Module):
     # in_planes - Number of Input channels
     # out_planes - Number of Output channels
     # n_stages -  Number of consecutive maxpool, conv1x1 applications 
-    #             (2 in paper implimentation, 4 in code)
+    #             (2 in paper implementation, 4 in code)
     def __init__(self, in_planes: int, out_planes: int, n_stages: int):
         super(CRPBlock, self).__init__()
         for i in range(n_stages):
-            # Add a seperate 1x1 conv for each stage
+            # Add a separate 1x1 conv for each stage
             setattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'),
                     conv1x1(in_planes if (i == 0) else out_planes,
                             out_planes, stride=1,
@@ -245,7 +245,7 @@ class CRPBlock(nn.Module):
         self.n_stages = n_stages
         self.maxpool = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
 
-    # Applies consectuive maxpool and 1x1 conv, summing residuals
+    # Applies consecutive maxpool and 1x1 conv, summing residuals
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         top = x
         for i in range(self.n_stages):

@@ -10,13 +10,13 @@ def get_training_arguments() -> argparse.Namespace:
 	parser = argparse.ArgumentParser()
 	# Dataset and loading settings
 	parser.add_argument('--dataset_name', type=str,
-							help='Datatset name, see top of datasets.py for valid options')
+							help='Dataset name, see top of datasets.py for valid options')
 	parser.add_argument('--dataset_dir', type=str,
 							help='Root folder where images are stored')
 	parser.add_argument('--batch_size', type=int,
-							help='Batch size of samples durring training')
+							help='Batch size of samples during training')
 	parser.add_argument('--val_batch_size', type=int,
-							help='Batch size of samples durring validation')
+							help='Batch size of samples during validation')
 	parser.add_argument('--val_interval', type=int,
 							help='Run Validation loop every val_interval training epochs')
 	# Model and training settings
@@ -30,7 +30,7 @@ def get_training_arguments() -> argparse.Namespace:
 							default='6,12,18',
 							help='Dilation rates used in ASPP layer for deeplabv3+')
 	parser.add_argument('--imagenet', action="store_true",
-							help="Intiialises model wieghts with imagenet pretrain")
+							help="Initializes model weights with imagenet pretrain")
 	parser.add_argument('--momentum', type=float, default=0.0,
 							help='Momentum parameter for optimiser')
 	parser.add_argument('--decay' , type=float, default=0.0,
@@ -50,7 +50,7 @@ def get_training_arguments() -> argparse.Namespace:
 							help="Gradient checkpoints encoder modules")
 	# Checkpoint settings
 	parser.add_argument('--resume_from_ckpt_path', type=str, default="None",
-							help='Path to model wieghts file')
+							help='Path to model weights file')
 	parser.add_argument('--ckpt_path', type=str, default='None', 
 							help="Path to save model checkpoints to")
 	return parser.parse_args()
@@ -59,11 +59,11 @@ def get_testing_arguments() -> argparse.Namespace:
 	parser = argparse.ArgumentParser()
 	# Dataset and loading settings
 	parser.add_argument('--dataset_name', type=str,
-							help='Datatset name, see top of datasets.py for valid options')
+							help='Dataset name, see top of datasets.py for valid options')
 	parser.add_argument('--dataset_dir', type=str,
 							help='Root folder where images are stored')
 	parser.add_argument('--val_batch_size', type=int,
-							help='Batch size of samples durring validation')
+							help='Batch size of samples during validation')
 	# Model and training settings
 	parser.add_argument('--model', type=str,
 							help='Network architecture to train')
