@@ -77,7 +77,7 @@ class SegmentationTrainer(pl.LightningModule):
         self._loss = nn.CrossEntropyLoss()
         self._grad_ckpt = hparams.gradient_ckpt
         self._eval_metric = functional.classification.iou
-        self._device = torch.device(self._get_device)
+        self._device = torch.device(self._get_device())
 
     def _get_device(self):
         return "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -92,9 +92,13 @@ class SegmentationTrainer(pl.LightningModule):
         targets = targets.squeeze(1)
 
         predictions = self.forward(images)
-
+        
         loss = self._loss(predictions, targets)
-        batch_IoU = self._eval_metric(predictions, targets)
+        batch_IoU = self._eval_metric(
+            predictions.argmax(dim=1),
+            targets,
+            ignore_index = -100
+        )
         self.log("train_loss", loss)
         self.log("train_IoU", batch_IoU)
         return {"loss": loss}
@@ -105,7 +109,11 @@ class SegmentationTrainer(pl.LightningModule):
         targets = targets.squeeze(1)
         return {
             "val_loss": self._loss(predictions, targets),
-            "val_IoU": self._eval_metric(predictions, targets),
+            "val_IoU": self._eval_metric(
+                predictions.argmax(dim=1),
+                targets,
+                ignore_index = -100
+            ),
         }
 
     def validation_epoch_end(self, outputs: List[Dict]) -> Dict:

@@ -23,7 +23,7 @@ def main():
         auto_lr_find=False,
         gpus=args.gpus,
     )
-
+    print(args)
     model = SegmentationTrainer(args)
     trainer.fit(model, data_module)
 
