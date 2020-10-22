@@ -8,18 +8,24 @@ from .encoder_decoder import EncoderDecoder
 from .utils.layer_factory import conv1x1, convbnrelu
 
 
+os_to_rates = {
+    8:  [12, 24, 36],
+    16: [6, 12, 18],
+    32: [3, 6, 9],
+}
+
 class DeepLabV3plus(EncoderDecoder):
     def __init__(
         self,
         backbone: nn.Module,
         n_classes: int,
         classification_head: nn.Module = None,
-        atrous_rates: List[int] = [6, 12, 18],
         verbose_sizes: bool = False,
         interpolation_mode: str = "bilinear",
     ):
         super(DeepLabV3plus, self).__init__()
         self._encoder = backbone
+        atrous_rates = os_to_rates[backbone._output_stride]
         self._aspp = ASPP(self._aspp_in_channels, 256, atrous_rates)
         self._decoder = Decoder()
         # Optional to add custom classification head
