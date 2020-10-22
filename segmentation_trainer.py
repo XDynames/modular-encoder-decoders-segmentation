@@ -44,7 +44,6 @@ class SegmentationTrainer(pl.LightningModule):
         decoder = decoder_types[hparams.decoder](
             encoder,
             n_classes,
-            atrous_rates=hparams.atrous_rates,
             interpolation_mode="bilinear",
             classification_head=None,
             verbose_sizes=False,

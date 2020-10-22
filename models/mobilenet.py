@@ -16,6 +16,7 @@ from torch.utils.checkpoint import checkpoint
 class MobilenetV2Encoder(nn.Module):
     def __init__(self, model: nn.Module, output_stride: int = 32):
         super(MobilenetV2Encoder, self).__init__()
+        self._output_stride = output_stride
         self._level1 = nn.Sequential(
             *list(model.features)[0:2], *list(model.features)[2:4]
         )

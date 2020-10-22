@@ -41,12 +41,6 @@ def get_training_arguments() -> argparse.Namespace:
         help="Output stride for encoder backbone in deeplabv3+",
     )
     parser.add_argument(
-        "--atrous_rates",
-        type=lambda x: [int(y) for y in x.split(",")],
-        default="6,12,18",
-        help="Dilation rates used in ASPP layer for deeplabv3+",
-    )
-    parser.add_argument(
         "--imagenet",
         action="store_true",
         help="Initialise model weights with imagenet pretrain",
