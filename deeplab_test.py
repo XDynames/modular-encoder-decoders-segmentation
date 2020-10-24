@@ -8,7 +8,7 @@ from models.resnet import build_resnet
 encoder = build_resnet("18", output_stride=8)
 model = DeepLabV3plus(encoder, 12)
 
-dataset = CamVid("../seg_datasets/CamVid")
+dataset = CamVid("../../datasets/camvid")
 image1 = torchvision.transforms.functional.to_tensor(dataset[0][0])
 image2 = torchvision.transforms.functional.to_tensor(dataset[1][0])
 

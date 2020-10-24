@@ -61,7 +61,8 @@ class DeepLabV3plus(EncoderDecoder):
             print("class.size()", out.shape)
 
         return F.interpolate(
-            out, mode=self._interpolation_mode, size=x.shape[2:]
+            out, mode=self._interpolation_mode, size=x.shape[2:],
+            align_corners=True
         )
 
     def _build_dim_reducer(self):
@@ -86,7 +87,8 @@ class Decoder(nn.Module):
         self, low_level_features: torch.Tensor, aspp_features: torch.Tensor
     ) -> torch.Tensor:
         low_level_features = F.interpolate(
-            low_level_features, mode="bilinear", size=aspp_features.shape[2:]
+            low_level_features, mode="bilinear", size=aspp_features.shape[2:],
+            align_corners=True
         )
         x = torch.cat([low_level_features, aspp_features], axis=1)
         return self._conv_block(x)
@@ -170,5 +172,5 @@ class ASPPPooling(nn.Sequential):
     def forward(self, x):
         size = x.shape[-2:]
         x = super(ASPPPooling, self).forward(x)
-        x = F.interpolate(x, size=size, mode="bilinear", align_corners=False)
+        x = F.interpolate(x, size=size, mode="bilinear", align_corners=True)
         return x

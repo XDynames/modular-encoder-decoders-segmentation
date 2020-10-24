@@ -150,7 +150,7 @@ class RefineNetLW(EncoderDecoder):
         l1 = self._classification(l1)
         if upsample:
             l1 = F.interpolate(
-                l1, mode="bicubic", size=x.shape[2:], align_corners=False
+                l1, mode="bicubic", size=x.shape[2:], align_corners=True
             )
         return l1
 
