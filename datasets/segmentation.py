@@ -1,7 +1,6 @@
 import argparse
 import os
 
-import numpy as np
 import torch
 import torchvision
 from PIL import Image
@@ -14,16 +13,19 @@ db_info = {
     "ade20k": {
         "num_classes": 151,
         "size": [512, 512],
+        "ignore_index": -100,
         "normalisation": [[0.489, 0.465, 0.429], [0.256, 0.253, 0.272]],
     },
     "camvid": {
         "num_classes": 12,
         "size": [360, 480],
+        "ignore_index": -100,
         "normalisation": [[0.391, 0.405, 0.414], [0.297, 0.305, 0.301]],
     },
     "cityscapes": {
         "num_classes": 19,
         "size": [768, 768],
+        "ignore_index": -100,
         "normalisation": [[0.288, 0.327, 0.286], [0.190, 0.190, 0.187]],
     },
     "pascal_voc": {
@@ -34,6 +36,7 @@ db_info = {
     "kitti": {
         "num_classes": 19,
         "size": [368, 1240],
+        "ignore_index": -100,
         "normalisation": [[0.379, 0.398, 0.384], [0.308, 0.318, 0.326]],
     },
     "image_net": {
@@ -75,54 +78,29 @@ def build_dataset(
 # Override of pytorch Cityscapes dataset to ensure appropriate label
 # formating when loading ground truth segmentation maps
 class CustomCityscapes(Cityscapes):
-    """ Classes that are not assessed
-        void_classes = [ 0, 1, 2, 3, 4, 5, 6, 9, 10, 14, 15,
-                                         16, 18, 29, 30, -1 ]
-        # Classes that are assessed
-        valid_classes = [ 7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
-                          23, 24, 25, 26, 27, 28, 31, 32, 33 ]
-    """
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._label_mapping = torch.Tensor(
+            [
+                -100 if details[2] == 255 else details[2]
+                for details in Cityscapes.classes
+            ]
+        )
+        self.train_labels = [
+            label for label in Cityscapes.classes if not label.ignore_in_eval
+        ]
 
     # Change all classes not evaluated to ignore label (-100)
-    def _encode_target(self, target: torch.Tensor) -> torch.LongTensor:
-        # target = (target * 255)
-        target[target > 18] = -100
+    def pre_process_target(self, target):
+        target *= 255
+        target = target.long()
+        target = self._label_mapping[target]
         return target.long()
 
-    # Pytorch implementation
-    def __getitem__(self, index: int) -> [torch.Tensor, torch.LongTensor]:
-        image = Image.open(self.images[index]).convert("RGB")
-        targets = []
-        for i, t in enumerate(self.target_type):
-            if t == "polygon":
-                target = self._load_json(self.targets[index][i])
-            else:
-                target = Image.open(self.targets[index][i])
-
-            targets.append(target)
-
-        target = tuple(targets) if len(targets) > 1 else targets[0]
-
-        if self.transforms:
-            print("+++++TRANSFORM+++++")
-            print(np.unique(target))
-            image, target = self.transforms(image, target)
-            # New Code: maps labels not evaluated against to -100
-            print(target.unique())
-            target = self._encode_target(target)
-            print(target.unique())
+    def __getitem__(self, index: int) -> torch.Tensor:
+        image, target = super().__getitem__(index)
+        target = self.pre_process_target(target)
         return image, target
-
-    # Override to load training ID's directly
-    def _get_target_suffix(self, mode: str, target_type: str) -> str:
-        if target_type == "instance":
-            return "{}_instanceIds.png".format(mode)
-        elif target_type == "semantic":
-            return "{}_labelTrainIds.png".format(mode)
-        elif target_type == "color":
-            return "{}_color.png".format(mode)
-        else:
-            return "{}_polygons.json".format(mode)
 
 
 # Override of pytorch Pascal VOC segmentaton dataset to ensure
@@ -135,19 +113,10 @@ class CustomVOC(VOCSegmentation):
         target[(target > 21)] = -100
         return target.long()
 
-    # Pytorch implementation
-    def __getitem__(self, index: int) -> [torch.Tensor, torch.LongTensor]:
-        img = Image.open(self.images[index]).convert("RGB")
-        target = Image.open(self.masks[index])
-
-        if self.transforms is not None:
-            img, target = self.transforms(target, img)
-
-            # New Code: maps labels from [0,1] to [0, 20]
-            # 			with an ignore label of -100
-            target = self._encode_target(target)
-
-        return img, target
+    def __getitem__(self, index: int) -> torch.Tensor:
+        image, target = super().__getitem__(index)
+        target = self._encode_target(target)
+        return image, target
 
 
 # Abstract Class for implementing custom databases with
@@ -162,7 +131,7 @@ class CustomDataset(Dataset):
 
     # Returns the image and ground truth at the specified index
     # within the set files for the current stage
-    def __getitem__(self, idx: int) -> [torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> torch.Tensor:
         # Create paths to the images and ground truth requested
         imagePath = os.path.join(
             self._root, self._sampleFiles[self._stage][idx][0]

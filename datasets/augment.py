@@ -3,6 +3,7 @@ import argparse
 import torch
 from PIL import Image
 from torchvision import transforms
+from torchvision.transforms import InterpolationMode
 
 from . import segmentation
 
@@ -11,7 +12,9 @@ class ReSize_Normalise(object):
     def __init__(self, args: argparse.Namespace = None):
         db_info = segmentation.getInformation(args.dataset_name)
         pytorch_transforms = [
-            transforms.Resize(tuple(db_info["size"]), Image.NEAREST),
+            transforms.Resize(
+                tuple(db_info["size"]), InterpolationMode.NEAREST
+            ),
             transforms.ToTensor(),
         ]
         self._preprep = transforms.Compose(pytorch_transforms)

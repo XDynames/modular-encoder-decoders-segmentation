@@ -18,7 +18,7 @@ class SegmentationDataModule(pl.LightningDataModule):
         return DataLoader(
             train_dataset,
             batch_size=hparams.batch_size,
-            num_workers=4,
+            num_workers=hparams.n_workers,
             shuffle=True,
             drop_last=True,
         )
@@ -29,7 +29,9 @@ class SegmentationDataModule(pl.LightningDataModule):
             hparams, "val", ReSize_Normalise(hparams)
         )
         return DataLoader(
-            val_dataset, batch_size=hparams.val_batch_size, num_workers=4
+            val_dataset,
+            batch_size=hparams.val_batch_size,
+            num_workers=hparams.n_workers,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -38,5 +40,7 @@ class SegmentationDataModule(pl.LightningDataModule):
             hparams, "val", ReSize_Normalise(hparams)
         )
         return DataLoader(
-            val_dataset, batch_size=hparams.val_batch_size, num_workers=4
+            val_dataset,
+            batch_size=hparams.val_batch_size,
+            num_workers=hparams.n_workers,
         )
