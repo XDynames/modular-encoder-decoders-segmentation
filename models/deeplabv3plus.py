@@ -7,12 +7,12 @@ import torch.nn.functional as F
 from .encoder_decoder import EncoderDecoder
 from .utils.layer_factory import conv1x1, convbnrelu
 
-
 os_to_rates = {
-    8:  [12, 24, 36],
+    8: [12, 24, 36],
     16: [6, 12, 18],
     32: [3, 6, 9],
 }
+
 
 class DeepLabV3plus(EncoderDecoder):
     def __init__(

@@ -1,19 +1,22 @@
-#!bin/bash
-
-# Script for running network training
+export "WANDB_API_KEY"="e8d24680a3708a131030ff9268996add924a526d"
 python train_segmentation.py \
-	--dataset_name camvid \
-	--dataset_dir ../../datasets/camvid/ \
-	--decoder refinenet \
+	--project-name cityscapes \
+	--run-name deeplab-resent-18 \
+	--dataset-name cityscapes \
+	--dataset-dir /mnt/data/segmentation/cityscapes/ \
+	--decoder deeplab \
 	--encoder resnet_18 \
+	--output-stride 8 \
 	--imagenet \
-	--batch_size 64 \
-	--val_batch_size 32 \
-	--val_interval 10 \
+	--batch-size 64 \
+	--val-batch-size 32 \
+	--val-interval 1 \
 	--lr 0.03 \
+	--step-lr-every-n-steps 100 \
+	--lr-step-factor 0.1 \
 	--decay 1e-5 \
 	--momentum 0.9 \
-	--num_epochs 300 \
-	--amp_level O2 \
-	--gradient_ckpt \
-	--gpus "0"
+	--n-epochs 300 \
+	--precision 16 \
+	--gradient-ckpt \
+	--gpus "-1"
