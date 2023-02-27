@@ -3,6 +3,7 @@ from typing import List, Tuple
 import torch
 import torch.nn as nn
 import torchvision
+from loguru import logger
 from torch.utils.checkpoint import checkpoint
 
 """
@@ -15,7 +16,7 @@ from torch.utils.checkpoint import checkpoint
 
 class ResnetEncoder(nn.Module):
     def __init__(self, model: nn.Module, output_stride: int = 32):
-        super(ResnetEncoder, self).__init__()
+        super().__init__()
         self._output_stride = output_stride
 
         self._level1 = Ignore2ndArg(
@@ -96,16 +97,17 @@ class Ignore2ndArg(nn.Module):
 """
 
 
-def build_resnet(
-    variant: str = "50", imagenet: bool = False, output_stride: int = 32
-) -> nn.Module:
+def build(variant: str = "50", imagenet: bool = False) -> nn.Module:
+    if imagenet:
+        weights = "IMAGENET1K_V1" if variant == "18" else "IMAGENET1K_V2"
+        logger.info("Initialising with imagenet pretrained weights")
     if variant in model_dict.keys():
-        model = model_dict[variant](imagenet)
+        model = model_dict[variant](weights=weights)
     else:
         print("Invalid or unimplemented ResNet Variant")
         print("Valid options are: '18', '32', '50', '101', '152'")
     # Convert to Encoder-Decoder integrable version
-    return ResnetEncoder(model, output_stride)
+    return model
 
 
 model_dict = {

@@ -7,39 +7,46 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.datasets import Cityscapes, VOCSegmentation
 
+from datasets.constants import VOC_SEG_CLASSES, CITYSCAPES_SEG_CLASSES
+
 # Stores information for implemented dataset, normalisation
 # statistics calculated across training and validation sets
 db_info = {
     "ade20k": {
-        "num_classes": 151,
+        "n_classes": 151,
         "size": [512, 512],
         "ignore_index": -100,
+        "class_labels": None,
         "normalisation": [[0.489, 0.465, 0.429], [0.256, 0.253, 0.272]],
     },
     "camvid": {
-        "num_classes": 12,
+        "n_classes": 12,
         "size": [360, 480],
         "ignore_index": -100,
+        "class_labels": None,
         "normalisation": [[0.391, 0.405, 0.414], [0.297, 0.305, 0.301]],
     },
     "cityscapes": {
-        "num_classes": 19,
+        "n_classes": 19,
         "size": [768, 768],
         "ignore_index": -100,
+        "class_labels": CITYSCAPES_SEG_CLASSES,
         "normalisation": [[0.288, 0.327, 0.286], [0.190, 0.190, 0.187]],
     },
     "pascal_voc": {
-        "num_classes": 21,
+        "n_classes": 21,
         "size": [512, 512],
+        "class_labels": VOC_SEG_CLASSES,
         "normalisation": [[0.457, 0.441, 0.405], [0.267, 0.264, 0.281]],
     },
     "kitti": {
-        "num_classes": 19,
+        "n_classes": 19,
         "size": [368, 1240],
         "ignore_index": -100,
+        "class_labels": None,
         "normalisation": [[0.379, 0.398, 0.384], [0.308, 0.318, 0.326]],
     },
-    "image_net": {
+    "imagenet": {
         "normalisation": [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]]
     },
 }
@@ -71,7 +78,10 @@ def build_dataset(
         )
     if args.dataset_name == "cityscapes":
         return CustomCityscapes(
-            args.dataset_dir, split=image_set, transforms=transform
+            args.dataset_dir,
+            split=image_set,
+            transforms=transform,
+            target_type="semantic",
         )
 
 
@@ -86,9 +96,6 @@ class CustomCityscapes(Cityscapes):
                 for details in Cityscapes.classes
             ]
         )
-        self.train_labels = [
-            label for label in Cityscapes.classes if not label.ignore_in_eval
-        ]
 
     # Change all classes not evaluated to ignore label (-100)
     def pre_process_target(self, target):

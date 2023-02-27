@@ -10,7 +10,7 @@ def get_training_arguments() -> argparse.Namespace:
         help="Dataset name, see top of datasets.py for valid options",
     )
     parser.add_argument(
-        "--datase-_dir",
+        "--dataset-dir",
         type=str,
         help="Root folder where images are stored",
     )
@@ -20,7 +20,7 @@ def get_training_arguments() -> argparse.Namespace:
         help="Batch size of samples durring training",
     )
     parser.add_argument(
-        "--val-batch_size",
+        "--val-batch-size",
         type=int,
         help="Batch size of samples durring validation",
     )
@@ -32,6 +32,7 @@ def get_training_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--n-workers",
         type=int,
+        default=4,
         help="Number of worker threads used in dataloader",
     )
     # Model and training settings
@@ -104,7 +105,10 @@ def get_training_arguments() -> argparse.Namespace:
     )
     # Resourcing
     parser.add_argument(
-        "--gpus", type=str, default="", help="Which GPUs to use"
+        "--gpus",
+        type=str,
+        default="",
+        help="Which GPUs to use",
     )
     parser.add_argument(
         "--gradient-ckpt",
@@ -132,7 +136,12 @@ def get_training_arguments() -> argparse.Namespace:
         "--run-name", type=str, help="Name used to log the run"
     )
     # Logging
-    parser.add_argument("log-every-n-steps", type=int, help="Logging interval")
+    parser.add_argument(
+        "--log-every-n-steps",
+        type=int,
+        default=10,
+        help="Logging interval",
+    )
     return parser.parse_args()
 
 
@@ -157,6 +166,7 @@ def get_testing_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--n-workers",
         type=int,
+        default=4,
         help="Number of worker threads used in dataloader",
     )
     # Model and training settings

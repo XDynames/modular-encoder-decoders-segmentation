@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import torch
 import torchvision
+from loguru import logger
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
@@ -60,8 +61,9 @@ class MobilenetV2Encoder(nn.Module):
 """
 
 
-def build_mobilenet_v2(imagenet: bool = False) -> nn.Module:
-    model = torchvision.models.mobilenet_v2(pretrained=imagenet)
-    # Convert to encoder version
-    model = MobilenetV2Encoder(model)
+def build(variant: str = "v2", imagenet: bool = False) -> nn.Module:
+    if imagenet:
+        weights = "IMAGENET1K_V2"
+        logger.info("Initialising with imagenet pretrained weights")
+    model = torchvision.models.mobilenet_v2(weights=weights)
     return model
