@@ -1,9 +1,9 @@
 export "WANDB_API_KEY"="e8d24680a3708a131030ff9268996add924a526d"
 python train_segmentation.py \
-	--project-name cityscapes \
+	--project-name monza-track \
 	--run-name deeplab-resent-18 \
-	--dataset-name cityscapes \
-	--dataset-dir /mnt/data/segmentation/cityscapes/ \
+	--dataset-name monza \
+	--dataset-dir /mnt/data/segmentation/monza/ \
 	--decoder deeplab \
 	--encoder resnet_18 \
 	--output-stride 8 \

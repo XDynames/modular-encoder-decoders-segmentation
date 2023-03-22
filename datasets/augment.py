@@ -19,10 +19,14 @@ class ReSizeNormalise:
             transforms.ToTensor(),
         ]
         self._preprep = transforms.Compose(pytorch_transforms)
-        self._normalise = transforms.Normalize(*db_info["normalisation"])
+        if "normalisation" in db_info:
+            self._normalise = transforms.Normalize(*db_info["normalisation"])
+        else:
+            self._normalise = None
 
     def __call__(self, image: Image, target: Image) -> torch.Tensor:
         image = self._preprep(image)
-        image = self._normalise(image)
+        if self._normalise is not None:
+            image = self._normalise(image)
         target = self._preprep(target)
         return image, target

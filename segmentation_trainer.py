@@ -72,6 +72,8 @@ class SegmentationTrainer(pl.LightningModule):
         self._grad_ckpt = hparams.gradient_ckpt
         self._setup_evaluation_metric()
         self._setup_class_labels()
+        self.validation_outputs = []
+        self.test_outputs = []
 
     def _setup_evaluation_metric(self):
         hparams = self.hparams["hparams"]
@@ -122,16 +124,20 @@ class SegmentationTrainer(pl.LightningModule):
         images, targets = batch
         predictions = self.forward(images)
         targets = targets.squeeze(1)
-        return {
-            "val_loss": self._loss(predictions, targets),
-            "val_iou": self._eval_metric(predictions, targets),
-        }
+        self.validation_outputs.append(
+            {
+                "val_loss": self._loss(predictions, targets),
+                "val_iou": self._eval_metric(predictions, targets),
+            }
+        )
 
-    def validation_epoch_end(self, outputs: List[Dict]) -> Dict:
+    def on_validation_epoch_end(self):
+        outputs = self.validation_outputs
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
         avg_ious = torch.stack([x["val_iou"] for x in outputs]).mean(dim=0)
         self.log("loss/val", avg_loss, sync_dist=True)
         self.log_iou("val", avg_ious)
+        self.validation_outputs.clear()
 
     def log_iou(self, stage: str, label_ious: torch.Tensor):
         for iou, label in zip(label_ious, self.class_labels):
@@ -142,9 +148,11 @@ class SegmentationTrainer(pl.LightningModule):
         images, targets = batch
         predictions = self.forward(images)
         targets = targets.squeeze()
-        return {"test_iou": self._eval_metric(predictions, targets)}
+        self.test_outputs.append(
+            {"test_iou": self._eval_metric(predictions, targets)}
+        )
 
-    def test_epoch_end(self, outputs: List[Dict]) -> Dict:
-        avg_IoU = np.mean([x["test_iou"] for x in outputs])
-        logger.info("Finished testing with mIoU: {}%".format(avg_IoU * 100))
-        return {"avg_IoU": avg_IoU}
+    def on_test_epoch_end(self, outputs: List[Dict]) -> Dict:
+        outputs = self.test_outputs
+        avg_ious = torch.stack([x["test_iou"] for x in outputs]).mean(dim=0)
+        self.log_iou("test", avg_ious)

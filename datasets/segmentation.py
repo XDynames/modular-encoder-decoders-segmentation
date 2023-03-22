@@ -7,7 +7,12 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.datasets import Cityscapes, VOCSegmentation
 
-from datasets.constants import VOC_SEG_CLASSES, CITYSCAPES_SEG_CLASSES
+from datasets.constants import (
+    VOC_SEG_CLASSES,
+    BINARY_CITYSCAPES_SEG_CLASSES,
+    CITYSCAPES_SEG_CLASSES,
+    MONZA_SEG_CLASSES,
+)
 
 # Stores information for implemented dataset, normalisation
 # statistics calculated across training and validation sets
@@ -33,6 +38,13 @@ db_info = {
         "class_labels": CITYSCAPES_SEG_CLASSES,
         "normalisation": [[0.288, 0.327, 0.286], [0.190, 0.190, 0.187]],
     },
+    "binary_cityscapes": {
+        "n_classes": 2,
+        "size": [720, 1280],
+        "ignore_index": -100,
+        "class_labels": BINARY_CITYSCAPES_SEG_CLASSES,
+        "normalisation": [[0.288, 0.327, 0.286], [0.190, 0.190, 0.187]],
+    },
     "pascal_voc": {
         "n_classes": 21,
         "size": [512, 512],
@@ -48,6 +60,12 @@ db_info = {
     },
     "imagenet": {
         "normalisation": [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]]
+    },
+    "monza": {
+        "n_classes": 3,
+        "size": [720, 1280],
+        "ignore_index": -100,
+        "class_labels": MONZA_SEG_CLASSES,
     },
 }
 
@@ -74,7 +92,9 @@ def build_dataset(
 
     if args.dataset_name == "pascal_voc":
         return CustomVOC(
-            args.dataset_dir, image_set=image_set, transforms=transform
+            args.dataset_dir,
+            image_set=image_set,
+            transforms=transform,
         )
     if args.dataset_name == "cityscapes":
         return CustomCityscapes(
@@ -82,6 +102,19 @@ def build_dataset(
             split=image_set,
             transforms=transform,
             target_type="semantic",
+        )
+    if args.dataset_name == "binary_cityscapes":
+        return BinaryCityscapes(
+            args.dataset_dir,
+            split=image_set,
+            transforms=transform,
+            target_type="semantic",
+        )
+    if args.dataset_name == "monza":
+        return MonzaRoad(
+            args.dataset_dir,
+            train_transform=transform,
+            val_transform=transform,
         )
 
 
@@ -108,6 +141,15 @@ class CustomCityscapes(Cityscapes):
         image, target = super().__getitem__(index)
         target = self.pre_process_target(target)
         return image, target
+
+
+class BinaryCityscapes(CustomCityscapes):
+    def pre_process_target(self, target):
+        target *= 255
+        target = target.long()
+        target = self._label_mapping[target]
+        target[target > 0] = 1
+        return target.long()
 
 
 # Override of pytorch Pascal VOC segmentaton dataset to ensure
@@ -169,6 +211,52 @@ class CustomDataset(Dataset):
     # Mutator to swap stages
     def setStage(self, stage: str):
         self._stage = stage
+
+
+class MonzaRoad(CustomDataset):
+    # Monza road and track limits dataset
+    def __init__(
+        self,
+        root: str,
+        train_transform: torchvision.transforms = None,
+        train_transformGT: torchvision.transforms = None,
+        val_transform: torchvision.transforms = None,
+        val_transformGT: torchvision.transforms = None,
+    ):
+        # Store database root directory
+        self._root = root
+        # Store image transforms
+        self._transforms = {
+            "train": train_transform,
+            "trainGT": train_transformGT,
+            "val": val_transform,
+            "valGT": train_transformGT,
+        }
+        # Flag for which filelist/transform to be used
+        self._stage = "train"
+        # Store list of image GT pairs for each section
+        self._sampleFiles = {
+            "train": self._getImageList("train"),
+            "val": self._getImageList("train"),
+        }
+
+    def _getImageList(self, stage: str):
+        path = os.path.join(self._root, stage)
+        filenames = os.listdir(os.path.join(self._root, stage))
+        samples = [file.split(".")[0].split("-")[0] for file in filenames]
+        file_pairs = [
+            (
+                os.path.join(path, sample + ".jpeg"),
+                os.path.join(path, sample + "-trainids.png"),
+            )
+            for sample in samples
+        ]
+        return file_pairs
+
+    def _encode_target(self, target: torch.Tensor) -> torch.LongTensor:
+        target = target * 255
+        target[target > 2] = 1
+        return target.long()
 
 
 class CamVid(CustomDataset):

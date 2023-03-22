@@ -45,3 +45,15 @@ CITYSCAPES_SEG_CLASSES = [
     if not class_details.ignore_in_eval
 ]
 CITYSCAPES_SEG_CLASSES.append(ClassInformation("ignored", 255, (0, 0, 0)))
+
+BINARY_CITYSCAPES_SEG_CLASSES = [
+    ClassInformation("road", 0, (128, 64, 128)),
+    ClassInformation("not_road", 1, (0, 0, 0)),
+    ClassInformation("ignored", 255, (40, 40, 40)),
+]
+
+MONZA_SEG_CLASSES = [
+    ClassInformation("road", 0, (84, 84, 84)),
+    ClassInformation("background", 1, (255, 119, 51)),
+    ClassInformation("track_limit", 2, (255, 255, 255)),
+]
