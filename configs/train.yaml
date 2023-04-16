@@ -1,6 +1,6 @@
 model:
   model_name: resnet18
-  loss_name: L1
+  loss_name: l1
 
 data:
   data_directory: /data/aarc/monza/audi_r8_lms_2016/imitation_learning/
@@ -13,7 +13,7 @@ trainer:
     init_args:
       project: imitation-learning
       name: resnet18-v1
-      log_models: True
+      log_model: True
   strategy:
     class_path: lightning.pytorch.strategies.DDPStrategy
     init_args:

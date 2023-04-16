@@ -34,7 +34,7 @@ class ACDataModule(pl.LightningDataModule):
             dataset,
             batch_size=self._batch_size,
             shuffle=True,
-            n_workers=self._n_workers,
+            num_workers=self._n_workers,
             pin_memory=True,
         )
         return data_loader
@@ -54,7 +54,7 @@ class ACCaptureDataset(Dataset):
     def _setup_transforms(self):
         self._transform = transforms.Compose(
             [
-                transforms.Resize(1280, 720),
+                transforms.Resize((1280, 720)),
                 transforms.ToTensor(),
             ]
         )

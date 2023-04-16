@@ -14,7 +14,11 @@ class MyLightningCLI(LightningCLI):
 
 
 def cli_main():
-    cli = MyLightningCLI(ImitiationDriver, ACDataModule)
+    cli = MyLightningCLI(
+        model_class=ImitiationDriver,
+        datamodule_class=ACDataModule,
+        save_config_kwargs={"overwrite": True},
+    )
 
 
 if __name__ == "__main__":
