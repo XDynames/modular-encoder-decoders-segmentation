@@ -1,13 +1,12 @@
-
 from torch import nn
 from torchvision import models
 
 MODELS = {
-    'resnet18': models.resnet18,
-    'resnet32': models.resnet32,
-    'resnet50': models.resnet50,
-    'resnet101': models.resnet101,
-    'resnet152': models.resnet152,
+    "resnet18": models.resnet18,
+    "resnet32": models.resnet34,
+    "resnet50": models.resnet50,
+    "resnet101": models.resnet101,
+    "resnet152": models.resnet152,
 }
 
 

@@ -2,16 +2,24 @@ from pathlib import Path
 from PIL import Image
 
 import torch
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
 from src.datasets.load import load_game_state
 
+
 class ACDataModule(pl.LightningDataModule):
-    def setup(self, data_directory: str, batch_size: int):
+    def __init__(
+        self,
+        data_directory: str,
+        batch_size: int,
+        n_workers: int,
+    ):
+        super().__init__()
         self._data_directory = data_directory
         self._batch_size = batch_size
+        self._n_workers = n_workers
 
     def train_dataloader(self):
         training_set = ACCaptureDataset(self._data_directory, "train")
@@ -26,9 +34,11 @@ class ACDataModule(pl.LightningDataModule):
             dataset,
             batch_size=self._batch_size,
             shuffle=True,
-            n_workers=6,
+            n_workers=self._n_workers,
+            pin_memory=True,
         )
         return data_loader
+
 
 class ACCaptureDataset(Dataset):
     def __init__(self, data_directory: str, split: str):
@@ -36,17 +46,19 @@ class ACCaptureDataset(Dataset):
         self._data_directory = Path(data_directory).joinpath(split)
         self._setup_sample_paths()
         self._setup_transforms()
-    
+
     def _setup_sample_paths(self):
         sample_filepaths = self._data_directory.glob("*/*.bin")
         self.sample_paths = [filepath for filepath in sample_filepaths]
-    
+
     def _setup_transforms(self):
-        self._transform = transforms.Compose([
-            transforms.Resize(1280, 720),
-            transforms.ToTensor(),
-        ])
-    
+        self._transform = transforms.Compose(
+            [
+                transforms.Resize(1280, 720),
+                transforms.ToTensor(),
+            ]
+        )
+
     def __len__(self) -> int:
         return len(self.sample_paths)
 
@@ -58,12 +70,9 @@ class ACCaptureDataset(Dataset):
 
     def _load_state(self, sample_path: Path) -> torch.Tensor:
         state = load_game_state(sample_path)
-        action = [state['throttle'], state['brake'], state['steering']]
+        action = [state["throttle"], state["brake"], state["steering"]]
         return torch.Tensor(action)
 
     def _load_frame(self, state_path: Path) -> torch.Tensor:
-        image = Image.open(state_path.with_suffix('.jpeg'))
+        image = Image.open(state_path.with_suffix(".jpeg"))
         return self._transform(image)
-
-    
-        
