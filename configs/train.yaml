@@ -1,0 +1,43 @@
+model:
+  model_name: resnet18
+  loss_name: L1
+
+data:
+  data_directory: /data/aarc/monza/audi_r8_lms_2016/imitation_learning/
+  batch_size: 32
+  n_workers: 6
+
+trainer:
+  logger: 
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: imitation-learning
+      name: resnet18-v1
+      log_models: True
+  strategy:
+    class_path: lightning.pytorch.strategies.DDPStrategy
+    init_args:
+      find_unused_parameters: False
+  accelerator: gpu
+  devices: -1
+  precision: 16
+  max_epochs: 200
+  log_every_n_steps: 10
+  check_val_every_n_epoch: 1
+  benchmark: True
+  sync_batchnorm: True
+
+lr_scheduler:
+  monitor: loss
+  mode: min
+  factor: 0.1
+  patience: 10
+  min_lr: 0.0
+
+optimizer:
+  lr: 0.003
+  eps: 1.0e-4
+  amsgrad: True
+  weight_decay: 0.01
+
+

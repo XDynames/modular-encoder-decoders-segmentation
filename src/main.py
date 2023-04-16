@@ -4,6 +4,8 @@ from lightning.pytorch.cli import LightningCLI, ReduceLROnPlateau
 from src.trainer import ImitiationDriver
 from src.datasets.data import ACDataModule
 
+torch.set_float32_matmul_precision("medium")
+
 
 class MyLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
