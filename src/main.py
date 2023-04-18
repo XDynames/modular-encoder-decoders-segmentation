@@ -18,6 +18,7 @@ def cli_main():
         model_class=ImitiationDriver,
         datamodule_class=ACDataModule,
         save_config_kwargs={"overwrite": True},
+        seed_everything_default=1337,
     )
 
 

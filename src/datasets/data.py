@@ -23,17 +23,17 @@ class ACDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         training_set = ACCaptureDataset(self._data_directory, "train")
-        return self._get_data_loader(training_set)
+        return self._get_data_loader(training_set, True)
 
     def val_dataloader(self):
         val_set = ACCaptureDataset(self._data_directory, "val")
-        return self._get_data_loader(val_set)
+        return self._get_data_loader(val_set, False)
 
-    def _get_data_loader(self, dataset: Dataset) -> DataLoader:
+    def _get_data_loader(self, dataset: Dataset, shuffle: bool) -> DataLoader:
         data_loader = DataLoader(
             dataset,
             batch_size=self._batch_size,
-            shuffle=True,
+            shuffle=shuffle,
             num_workers=self._n_workers,
             pin_memory=True,
         )
@@ -48,7 +48,7 @@ class ACCaptureDataset(Dataset):
         self._setup_transforms()
 
     def _setup_sample_paths(self):
-        sample_filepaths = self._data_directory.glob("*/*.bin")
+        sample_filepaths = self._data_directory.glob("*.bin")
         self.sample_paths = [filepath for filepath in sample_filepaths]
 
     def _setup_transforms(self):
@@ -70,7 +70,7 @@ class ACCaptureDataset(Dataset):
 
     def _load_state(self, sample_path: Path) -> torch.Tensor:
         state = load_game_state(sample_path)
-        action = [state["throttle"], state["brake"], state["steering"]]
+        action = [state["throttle"], state["brake"], state["steering_angle"]]
         return torch.Tensor(action)
 
     def _load_frame(self, state_path: Path) -> torch.Tensor:

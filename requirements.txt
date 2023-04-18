@@ -1,0 +1,5 @@
+lightning
+torchmetrics
+wandb
+loguru
+jsonargparse[signatures]

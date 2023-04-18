@@ -3,9 +3,9 @@ model:
   loss_name: l1
 
 data:
-  data_directory: /data/aarc/monza/audi_r8_lms_2016/imitation_learning/
-  batch_size: 32
-  n_workers: 6
+  data_directory: /data/monza/audi_r8_lms_2016/imitation-learning-fastlaps
+  batch_size: 8
+  n_workers: 4
 
 trainer:
   logger: 
@@ -20,7 +20,7 @@ trainer:
       find_unused_parameters: False
   accelerator: gpu
   devices: -1
-  precision: 16
+  precision: 16-mixed
   max_epochs: 200
   log_every_n_steps: 10
   check_val_every_n_epoch: 1
