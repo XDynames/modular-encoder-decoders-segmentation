@@ -21,9 +21,9 @@ class ACDataModule(pl.LightningDataModule):
         self._batch_size = batch_size
         self._n_workers = n_workers
 
-    def train_dataloader(self):
+    def train_dataloader(self, shuffle: bool = True):
         training_set = ACCaptureDataset(self._data_directory, "train")
-        return self._get_data_loader(training_set, True)
+        return self._get_data_loader(training_set, shuffle)
 
     def val_dataloader(self):
         val_set = ACCaptureDataset(self._data_directory, "val")
@@ -49,7 +49,7 @@ class ACCaptureDataset(Dataset):
 
     def _setup_sample_paths(self):
         sample_filepaths = self._data_directory.glob("*.bin")
-        self.sample_paths = [filepath for filepath in sample_filepaths]
+        self.sample_paths = sorted(sample_filepaths, key=lambda x: int(x.stem))
 
     def _setup_transforms(self):
         self._transform = transforms.Compose(
