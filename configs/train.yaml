@@ -1,10 +1,11 @@
 model:
   model_name: resnet18
   loss_name: l1
+  sigmoid_output: True
 
 data:
   data_directory: /data/monza/audi_r8_lms_2016/imitation-learning-fastlaps
-  batch_size: 8
+  batch_size: 64
   n_workers: 4
 
 trainer:
@@ -28,14 +29,14 @@ trainer:
   sync_batchnorm: True
 
 lr_scheduler:
-  monitor: loss
+  monitor: loss/val
   mode: min
   factor: 0.1
   patience: 10
   min_lr: 0.0
 
 optimizer:
-  lr: 0.003
+  lr: 0.0001
   eps: 1.0e-4
   amsgrad: True
   weight_decay: 0.01

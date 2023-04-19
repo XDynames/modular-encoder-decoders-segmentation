@@ -5,5 +5,5 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 RUN pip install -e .
-ENV WANDB_API_KEY=
+ENV WANDB_API_KEY=e8d24680a3708a131030ff9268996add924a526d
 
