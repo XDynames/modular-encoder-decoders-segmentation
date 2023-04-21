@@ -13,19 +13,22 @@ MODELS = {
 
 class SteeringAdjustment(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x[:, 2] = (x[:, 2] * 2) - 1
-        return x
+        # steering_angle = (x[:, 2] * 2) - 1
+        # TODO: These tensors can be allocated and reused
+        factor = torch.ones_like(x)
+        factor[:, 2] = 2
+        offset = torch.zeros_like(x)
+        offset[:, 2] = 1
+        return (x * factor) - offset
 
 
 def get_modified_resent(name: str, sigmoid_output: bool) -> nn.Module:
     resnet = MODELS[name]()
     if sigmoid_output:
-        resnet.fc = nn.sequential(
-            [
+        resnet.fc = nn.Sequential(
                 nn.Linear(in_features=512, out_features=3, bias=True),
                 nn.Sigmoid(),
                 SteeringAdjustment(),
-            ]
         )
     else:
         resnet.fc = nn.Linear(in_features=512, out_features=3, bias=True)
