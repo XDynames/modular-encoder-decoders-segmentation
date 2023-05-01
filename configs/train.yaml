@@ -2,10 +2,13 @@ model:
   model_name: resnet18
   loss_name: l1
   sigmoid_output: True
+  n_stacked_frames: 3
 
 data:
   data_directory: /data/monza/audi_r8_lms_2016/imitation-learning-fastlaps
-  batch_size: 64
+  n_stacked_frames: 3
+  n_skip_frames: 3
+  batch_size: 32
   n_workers: 4
 
 trainer:
@@ -13,7 +16,7 @@ trainer:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
       project: imitation-learning
-      name: resnet18-v1
+      name: resnet18-v1-sigmoid-small-bs-long
       log_model: True
   strategy:
     class_path: lightning.pytorch.strategies.DDPStrategy

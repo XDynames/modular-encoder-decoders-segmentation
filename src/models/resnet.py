@@ -22,14 +22,35 @@ class SteeringAdjustment(nn.Module):
         return (x * factor) - offset
 
 
-def get_modified_resent(name: str, sigmoid_output: bool) -> nn.Module:
+def get_modified_resent(
+    name: str,
+    sigmoid_output: bool,
+    n_stacked_frames: int,
+) -> nn.Module:
     resnet = MODELS[name]()
+    input_surgery(resnet, n_stacked_frames)
+    output_surgery(resnet, sigmoid_output)
+    return resnet
+
+
+def input_surgery(resnet: nn.Module, n_stacked_frames: int):
+    if n_stacked_frames > 1:
+        resnet.conv1 = nn.Conv2d(
+            in_channels=3 * n_stacked_frames,
+            out_channels=64,
+            kernel_size=7,
+            stride=2,
+            padding=3,
+            bias=False,
+        )
+
+
+def output_surgery(resnet: nn.Module, sigmoid_output: bool):
     if sigmoid_output:
         resnet.fc = nn.Sequential(
-                nn.Linear(in_features=512, out_features=3, bias=True),
-                nn.Sigmoid(),
-                SteeringAdjustment(),
+            nn.Linear(in_features=512, out_features=3, bias=True),
+            nn.Sigmoid(),
+            SteeringAdjustment(),
         )
     else:
         resnet.fc = nn.Linear(in_features=512, out_features=3, bias=True)
-    return resnet

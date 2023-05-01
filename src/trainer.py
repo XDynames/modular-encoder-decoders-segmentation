@@ -11,9 +11,19 @@ ACTION_NAMES = ["throttle", "brake", "steering"]
 
 
 class ImitiationDriver(pl.LightningModule):
-    def __init__(self, model_name: str, loss_name: str, sigmoid_output: bool):
+    def __init__(
+        self,
+        model_name: str,
+        loss_name: str,
+        sigmoid_output: bool,
+        n_stacked_frames: int,
+    ):
         super().__init__()
-        self._model = get_modified_resent(model_name, sigmoid_output)
+        self._model = get_modified_resent(
+            model_name,
+            sigmoid_output,
+            n_stacked_frames,
+        )
         self._loss = LOSS_FUNCTIONS[loss_name](reduction="none")
         self._validation_outputs = []
 
