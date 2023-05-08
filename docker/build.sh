@@ -1,1 +1,1 @@
-docker build -f ./docker/dockerfile -t imitation-learning .
+docker build -f ./docker/dockerfile -t lightning-segmentation .

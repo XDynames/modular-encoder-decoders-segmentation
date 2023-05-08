@@ -1,8 +1,8 @@
 import torch
 from lightning.pytorch.cli import LightningCLI, ReduceLROnPlateau
 
-from src.trainer import ImitiationDriver
-from src.datasets.data import ACDataModule
+from src.trainer import Segmentor
+from src.datasets.data import SegmentationDataModule
 
 torch.set_float32_matmul_precision("medium")
 
@@ -15,8 +15,8 @@ class MyLightningCLI(LightningCLI):
 
 def cli_main():
     cli = MyLightningCLI(
-        model_class=ImitiationDriver,
-        datamodule_class=ACDataModule,
+        model_class=Segmentor,
+        datamodule_class=SegmentationDataModule,
         save_config_kwargs={"overwrite": True},
         seed_everything_default=1337,
     )
