@@ -1,1 +1,0 @@
-docker build -f docker/dockerfile -t segmentation_trainer .

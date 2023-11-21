@@ -1,12 +1,11 @@
 export "WANDB_API_KEY"="e8d24680a3708a131030ff9268996add924a526d"
-python train_segmentation.py \
+python /workspace/segmentors/train_segmentation.py \
 	--project-name monza-track \
-	--run-name deeplab-resent-18 \
+	--run-name fpn-resent-18-v3 \
 	--dataset-name monza \
-	--dataset-dir /mnt/data/segmentation/monza/ \
-	--decoder deeplab \
+	--dataset-dir /mnt/data/segmentation/monza/v2 \
+	--decoder fpn \
 	--encoder resnet_18 \
-	--output-stride 8 \
 	--imagenet \
 	--batch-size 64 \
 	--val-batch-size 32 \
@@ -18,5 +17,4 @@ python train_segmentation.py \
 	--momentum 0.9 \
 	--n-epochs 300 \
 	--precision 16 \
-	--gradient-ckpt \
 	--gpus "-1"

@@ -9,6 +9,7 @@ __pycache__/
 # Training logs
 lightning_logs/
 wandb/
+monza-track/
 
 # Saved Models
 saved_models/

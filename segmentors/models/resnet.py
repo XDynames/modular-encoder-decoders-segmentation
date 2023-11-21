@@ -98,6 +98,7 @@ class Ignore2ndArg(nn.Module):
 
 
 def build(variant: str = "50", imagenet: bool = False) -> nn.Module:
+    weights = None
     if imagenet:
         weights = "IMAGENET1K_V1" if variant == "18" else "IMAGENET1K_V2"
         logger.info("Initialising with imagenet pretrained weights")

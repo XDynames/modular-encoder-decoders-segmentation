@@ -5,6 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchvision
+import segmentation_models_pytorch as smp
 from loguru import logger
 from torch import nn
 from torchmetrics.classification import MulticlassJaccardIndex
@@ -32,9 +33,8 @@ class SegmentationTrainer(pl.LightningModule):
         hparams = self.hparams["hparams"]
         db_info = segmentation.getInformation(hparams.dataset_name)
         n_classes = db_info["n_classes"]
-
+        """
         encoder_type, encoder_variant = hparams.encoder.split("_")
-
         backbone = encoder_variants[encoder_type](
             encoder_variant, hparams.imagenet
         )
@@ -45,6 +45,12 @@ class SegmentationTrainer(pl.LightningModule):
             interpolation_mode="bilinear",
             classification_head=None,
             verbose_sizes=False,
+        )
+        """
+        decoder = smp.FPN(
+            encoder_name="resnet18",
+            encoder_weights="imagenet" if hparams.imagenet else None,
+            classes=n_classes,
         )
         return decoder
 
@@ -101,13 +107,12 @@ class SegmentationTrainer(pl.LightningModule):
         return [class_info.name for class_info in class_labels]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self._model(x, self._grad_ckpt)
+        return self._model(x)
 
     def training_step(
         self,
         batch: torch.Tensor,
         batch_idx: int,
-        optimizer_idx: int = 0,
     ) -> Dict:
         images, targets = batch
         targets = targets.squeeze(1)
@@ -148,9 +153,7 @@ class SegmentationTrainer(pl.LightningModule):
         images, targets = batch
         predictions = self.forward(images)
         targets = targets.squeeze()
-        self.test_outputs.append(
-            {"test_iou": self._eval_metric(predictions, targets)}
-        )
+        self.test_outputs.append({"test_iou": self._eval_metric(predictions, targets)})
 
     def on_test_epoch_end(self, outputs: List[Dict]) -> Dict:
         outputs = self.test_outputs

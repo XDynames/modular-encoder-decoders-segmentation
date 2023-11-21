@@ -58,12 +58,10 @@ db_info = {
         "class_labels": None,
         "normalisation": [[0.379, 0.398, 0.384], [0.308, 0.318, 0.326]],
     },
-    "imagenet": {
-        "normalisation": [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]]
-    },
+    "imagenet": {"normalisation": [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]]},
     "monza": {
-        "n_classes": 3,
-        "size": [720, 1280],
+        "n_classes": 10,
+        "size": [736, 1280],
         "ignore_index": -100,
         "class_labels": MONZA_SEG_CLASSES,
     },
@@ -111,7 +109,7 @@ def build_dataset(
             target_type="semantic",
         )
     if args.dataset_name == "monza":
-        return MonzaRoad(
+        return Monza(
             args.dataset_dir,
             train_transform=transform,
             val_transform=transform,
@@ -182,12 +180,8 @@ class CustomDataset(Dataset):
     # within the set files for the current stage
     def __getitem__(self, idx: int) -> torch.Tensor:
         # Create paths to the images and ground truth requested
-        imagePath = os.path.join(
-            self._root, self._sampleFiles[self._stage][idx][0]
-        )
-        targetPath = os.path.join(
-            self._root, self._sampleFiles[self._stage][idx][1]
-        )
+        imagePath = os.path.join(self._root, self._sampleFiles[self._stage][idx][0])
+        targetPath = os.path.join(self._root, self._sampleFiles[self._stage][idx][1])
 
         # Load the files as PIL images
         image = Image.open(imagePath)
@@ -213,7 +207,7 @@ class CustomDataset(Dataset):
         self._stage = stage
 
 
-class MonzaRoad(CustomDataset):
+class Monza(CustomDataset):
     # Monza road and track limits dataset
     def __init__(
         self,
@@ -255,8 +249,10 @@ class MonzaRoad(CustomDataset):
 
     def _encode_target(self, target: torch.Tensor) -> torch.LongTensor:
         target = target * 255
-        target[target > 2] = 1
-        return target.long()
+        target = target.long()
+        target = target + 1
+        target[target > 9] = 0
+        return target
 
 
 class CamVid(CustomDataset):
@@ -291,9 +287,7 @@ class CamVid(CustomDataset):
     # filenames for raw and annotated images
     def _getImageList(self, stage: str):
         imageFiles = os.listdir(os.path.join(self._root, stage))
-        targetFiles = os.listdir(
-            os.path.join(self._root, "-".join([stage, "mask"]))
-        )
+        targetFiles = os.listdir(os.path.join(self._root, "-".join([stage, "mask"])))
         file_pairs = [
             (
                 os.path.join(stage, image),
@@ -337,16 +331,12 @@ class KITTI(CustomDataset):
 
         # Build a list of files for images and ground truths
         # for the folder structure
-        imageFiles = os.listdir(
-            os.path.join(self._root, "training", "image_2")
-        )
+        imageFiles = os.listdir(os.path.join(self._root, "training", "image_2"))
         targetFiles = os.listdir(
             os.path.join(self._root, "training", "semantic_trainID")
         )
         valImageFiles = os.listdir(os.path.join(self._root, "val", "image_2"))
-        valTargetFiles = os.listdir(
-            os.path.join(self._root, "val", "semantic_trainID")
-        )
+        valTargetFiles = os.listdir(os.path.join(self._root, "val", "semantic_trainID"))
         # Make a list of image target pairs
         trainSamples = [
             (
@@ -404,15 +394,11 @@ class ADE20K(CustomDataset):
         # Flag for which filelist/transform to be used
         self._stage = "train"
         # Retrieve filenames for training and validation sets
-        trainImageFiles = os.listdir(
-            os.path.join(self._root, "images", "training")
-        )
+        trainImageFiles = os.listdir(os.path.join(self._root, "images", "training"))
         trainTargetFiles = os.listdir(
             os.path.join(self._root, "annotations", "training")
         )
-        valImageFiles = os.listdir(
-            os.path.join(self._root, "images", "validation")
-        )
+        valImageFiles = os.listdir(os.path.join(self._root, "images", "validation"))
         valTargetFiles = os.listdir(
             os.path.join(self._root, "annotations", "validation")
         )
