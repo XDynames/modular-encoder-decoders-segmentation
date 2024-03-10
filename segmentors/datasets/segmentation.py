@@ -241,7 +241,7 @@ class Monza(CustomDataset):
         file_pairs = [
             (
                 os.path.join(path, sample + ".jpeg"),
-                os.path.join(path, sample + "-trainids.png"),
+                os.path.join(path, sample + "-ids.png"),
             )
             for sample in samples
         ]

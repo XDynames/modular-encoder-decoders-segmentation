@@ -1,9 +1,9 @@
 export "WANDB_API_KEY"="e8d24680a3708a131030ff9268996add924a526d"
 python /workspace/segmentors/train_segmentation.py \
 	--project-name monza-track \
-	--run-name fpn-resent-18-v3 \
+	--run-name silverstone-fpn-resent-18-v1 \
 	--dataset-name monza \
-	--dataset-dir /mnt/data/segmentation/monza/v2 \
+	--dataset-dir /data/aarc/segmentation/silverstone/ \
 	--decoder fpn \
 	--encoder resnet_18 \
 	--imagenet \
@@ -15,6 +15,6 @@ python /workspace/segmentors/train_segmentation.py \
 	--lr-step-factor 0.1 \
 	--decay 1e-5 \
 	--momentum 0.9 \
-	--n-epochs 300 \
+	--n-epochs 200 \
 	--precision 16 \
 	--gpus "-1"
