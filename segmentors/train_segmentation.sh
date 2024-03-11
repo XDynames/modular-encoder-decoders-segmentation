@@ -1,9 +1,10 @@
 export "WANDB_API_KEY"="e8d24680a3708a131030ff9268996add924a526d"
 python /workspace/segmentors/train_segmentation.py \
-	--project-name monza-track \
-	--run-name silverstone-fpn-resent-18-v1 \
+	--entity aiml-l2r\
+	--project-name ac-segmentation \
+	--run-name spa-fpn-resent-18-v1 \
 	--dataset-name monza \
-	--dataset-dir /data/aarc/segmentation/silverstone/ \
+	--dataset-dir /data/aarc/segmentation/spa/ \
 	--decoder fpn \
 	--encoder resnet_18 \
 	--imagenet \

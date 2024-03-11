@@ -18,6 +18,7 @@ def main():
         project=args.project_name,
         name=args.run_name,
         log_model=True,
+        entity=args.entity,
     )
     data_module = SegmentationDataModule(args)
     trainer = Trainer(

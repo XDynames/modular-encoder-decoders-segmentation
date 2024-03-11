@@ -130,11 +130,12 @@ def get_training_arguments() -> argparse.Namespace:
     )
     # W&B settings
     parser.add_argument(
-        "--project-name", type=str, help="Project to log run under"
+        "--entity",
+        type=str,
+        help="Entity the project to log runs under",
     )
-    parser.add_argument(
-        "--run-name", type=str, help="Name used to log the run"
-    )
+    parser.add_argument("--project-name", type=str, help="Project to log run under")
+    parser.add_argument("--run-name", type=str, help="Name used to log the run")
     # Logging
     parser.add_argument(
         "--log-every-n-steps",
@@ -170,9 +171,7 @@ def get_testing_arguments() -> argparse.Namespace:
         help="Number of worker threads used in dataloader",
     )
     # Model and training settings
-    parser.add_argument(
-        "--model", type=str, help="Network architecture to train"
-    )
+    parser.add_argument("--model", type=str, help="Network architecture to train")
     parser.add_argument(
         "--precision",
         type=int,
